@@ -25,6 +25,8 @@ interface TrendingTopic {
   leftCount: number;
   centerCount: number;
   rightCount: number;
+  coverageGap?: "left" | "center" | "right" | null;
+  coverageScore?: number;
 }
 
 interface ChatMessage {
@@ -32,90 +34,173 @@ interface ChatMessage {
   content: string;
 }
 
-type Tab = "overview" | "perspectives" | "articles";
+type Lean = "left" | "center" | "right";
+type ViewTab = "coverage" | "articles";
 
-// ── Mock content generator (will be replaced by AI) ────────
-function getMockOverview(title: string): string {
-  const overviews: Record<string, string> = {
-    "Iran": "The United States and Iran are engaged in an escalating military conflict following months of rising tensions over Iran's nuclear program and regional influence. The situation involves complex geopolitical dynamics including oil supply concerns, regional alliances, and questions about diplomatic vs. military approaches.",
-    "Trump Administration": "The current administration continues to drive significant policy changes across immigration, trade, government spending, and foreign affairs. These actions have generated intense debate about executive authority, government efficiency, and the direction of domestic and foreign policy.",
-    "Israel-Palestine Conflict": "The ongoing conflict between Israel and Palestinian groups continues with significant humanitarian, diplomatic, and security implications. International actors are divided on approaches to resolution, with debates centering on sovereignty, security, human rights, and historical claims.",
-    "Immigration & Border": "Immigration policy remains one of the most divisive issues in American politics, touching on border security, deportation, asylum processes, and the economic and cultural impacts of immigration. Recent policy changes have intensified the debate.",
-    "Congress & Legislation": "Congress is navigating a complex legislative agenda with competing priorities around government funding, policy reforms, and oversight responsibilities. Bipartisan cooperation and partisan gridlock continue to shape what moves forward.",
-    "Policing & Criminal Justice": "Criminal justice reform debates span policing practices, incarceration rates, sentencing guidelines, and rehabilitation programs. The US has the highest incarceration rate globally, and questions about public safety vs. reform approaches remain central.",
-  };
-  return overviews[title] || `${title} is a major topic generating significant coverage across the political spectrum. Multiple perspectives exist on the key issues, policy implications, and potential paths forward. Explore the perspectives below to understand what different sides are arguing.`;
+const SOURCE_INFO: Record<string, { bias: number; factuality: number; ownership: string }> = {
+  "cnn": { bias: -8, factuality: 65, ownership: "Warner Bros Discovery" },
+  "nbc news": { bias: -7, factuality: 70, ownership: "Comcast" },
+  "abc news": { bias: -6, factuality: 72, ownership: "Disney" },
+  " CBS News": { bias: -5, factuality: 73, ownership: "Paramount" },
+  "nytimes": { bias: -7, factuality: 68, ownership: "New York Times Company" },
+  "washington post": { bias: -8, factuality: 69, ownership: "Amazon (Jeff Bezos)" },
+  "the atlantic": { bias: -9, factuality: 74, ownership: "Atlantic Media" },
+  "huffpost": { bias: -12, factuality: 58, ownership: "BuzzFeed" },
+  "vox": { bias: -10, factuality: 66, ownership: "Vox Media" },
+  "slate": { bias: -11, factuality: 62, ownership: "Graham Holdings" },
+  "mother jones": { bias: -14, factuality: 64, ownership: "Foundation for National Progress" },
+  "the nation": { bias: -15, factuality: 60, ownership: "The Nation Institute" },
+  "reuters": { bias: 0, factuality: 85, ownership: "Thomson Reuters" },
+  "ap news": { bias: 0, factuality: 88, ownership: "Associated Press" },
+  "npr": { bias: -2, factuality: 82, ownership: "NPR (Nonprofit)" },
+  "the hill": { bias: 1, factuality: 70, ownership: "Nexus Media" },
+  "bloomberg": { bias: 2, factuality: 78, ownership: "Bloomberg L.P." },
+  "axios": { bias: 1, factuality: 76, ownership: "Cox Enterprises" },
+  "fox news": { bias: 12, factuality: 58, ownership: "Fox Corporation" },
+  "daily wire": { bias: 14, factuality: 52, ownership: "The Daily Wire" },
+  "breitbart": { bias: 16, factuality: 42, ownership: "Fox Corp (indirect)" },
+  "the federalist": { bias: 15, factuality: 48, ownership: "Binding sites" },
+  "national review": { bias: 13, factuality: 62, ownership: "National Review Institute" },
+  "townhall": { bias: 14, factuality: 55, ownership: " Salem Media Group" },
+};
+
+function getSourceDetails(domain: string) {
+  const info = SOURCE_INFO[domain.toLowerCase()] || SOURCE_INFO[domain.split('.')[0]] || { bias: 0, factuality: 70, ownership: "Unknown" };
+  return info;
 }
 
-function getMockPerspectives(title: string): { left: string; center: string; right: string } {
-  const perspectives: Record<string, { left: string; center: string; right: string }> = {
-    "Iran": {
-      left: "Military action was premature and risks a prolonged, costly conflict. Diplomatic channels were not exhausted, and the human cost — both for Iranians and American service members — must be the primary consideration. The focus should shift to de-escalation and international coalition-building.",
-      center: "Iran's nuclear ambitions posed a genuine security threat, but questions remain about whether military force was the most effective response. The situation demands clear strategic objectives, transparent communication with the public, and an exit strategy. Both diplomatic and military tools have roles to play.",
-      right: "Iran has been the world's leading state sponsor of terrorism for decades. After years of failed diplomacy and the collapse of the nuclear deal, decisive action was necessary to prevent a nuclear-armed Iran. American strength and resolve are essential to protecting national security and our allies in the region.",
-    },
-    "Trump Administration": {
-      left: "The administration's policies are dismantling critical institutions, rolling back environmental protections, and concentrating executive power in ways that undermine democratic norms. The impacts fall disproportionately on vulnerable communities.",
-      center: "The administration is pursuing an aggressive agenda that has achieved some policy goals while generating significant controversy. Evaluating its impact requires separating policy substance from political rhetoric and assessing long-term consequences.",
-      right: "The administration is delivering on promises to reduce government overreach, secure borders, and restore American economic competitiveness. Bold action was needed after years of bureaucratic inertia, and results speak for themselves.",
-    },
-    "Policing & Criminal Justice": {
-      left: "The US incarcerates more people than any other country, disproportionately people of color. We need to address root causes of crime through investment in communities, mental health services, and education — not just more policing. Private prisons create perverse profit incentives.",
-      center: "Effective criminal justice policy requires balancing public safety with fairness and rehabilitation. Data-driven approaches to policing, evidence-based sentencing reform, and investment in reentry programs can reduce both crime and unnecessary incarceration.",
-      right: "Public safety must be the top priority. Soft-on-crime policies have led to rising crime rates in many cities. Law enforcement officers deserve support, not defunding. Accountability for criminal behavior — through consistent enforcement and appropriate sentencing — is what keeps communities safe.",
-    },
-  };
-  return perspectives[title] || {
-    left: `Progressive voices argue for systemic reforms and greater government intervention to address the root causes of issues related to ${title}. They emphasize equity, social justice, and the need to protect vulnerable populations.`,
-    center: `Moderate analysis suggests a balanced approach to ${title} that weighs competing interests and relies on evidence-based policy. Pragmatic solutions that draw from both sides of the aisle are most likely to achieve sustainable results.`,
-    right: `Conservative perspectives on ${title} emphasize individual liberty, limited government, free market solutions, and traditional values. They argue that overregulation and government overreach often create more problems than they solve.`,
-  };
+function CoverageSidebar({ topic }: { topic: TrendingTopic }) {
+  const leftPct = Math.round((topic.leftCount / topic.articleCount) * 100);
+  const centerPct = Math.round((topic.centerCount / topic.articleCount) * 100);
+  const rightPct = Math.round((topic.rightCount / topic.articleCount) * 100);
+
+  return (
+    <aside className="w-80 border-l border-gray-200 bg-gray-50 overflow-y-auto">
+      <div className="p-4 space-y-6">
+        {/* Coverage Summary */}
+        <div>
+          <h3 className="font-semibold text-gray-900 mb-3">Coverage Details</h3>
+          <div className="space-y-3">
+            <div className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Total Articles</span>
+                <span className="font-medium">{topic.articleCount}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Sources</span>
+                <span className="font-medium">{new Set(topic.articles.map(a => a.source)).size}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Left Sources</span>
+                <span className="font-medium text-blue-600">{topic.leftCount}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Center Sources</span>
+                <span className="font-medium text-gray-600">{topic.centerCount}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Right Sources</span>
+                <span className="font-medium text-red-600">{topic.rightCount}</span>
+              </div>
+            </div>
+            
+            {/* Coverage Bar */}
+            <div>
+              <p className="text-xs text-gray-500 mb-2">Bias Distribution</p>
+              <div className="flex h-8 rounded-lg overflow-hidden">
+                {topic.leftCount > 0 && (
+                  <div className="bg-blue-500 flex items-center justify-center text-white text-xs font-medium" style={{ width: `${leftPct}%` }}>
+                    {leftPct > 10 && `${leftPct}%`}
+                  </div>
+                )}
+                {topic.centerCount > 0 && (
+                  <div className="bg-gray-400 flex items-center justify-center text-white text-xs font-medium" style={{ width: `${centerPct}%` }}>
+                    {centerPct > 10 && `${centerPct}%`}
+                  </div>
+                )}
+                {topic.rightCount > 0 && (
+                  <div className="bg-red-500 flex items-center justify-center text-white text-xs font-medium" style={{ width: `${rightPct}%` }}>
+                    {rightPct > 10 && `${rightPct}%`}
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>← Left</span>
+                <span>Right →</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Coverage Score */}
+        <div>
+          <h3 className="font-semibold text-gray-900 mb-3">Coverage Balance</h3>
+          <div className="bg-white border border-gray-200 rounded-lg p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-gray-600">Balance Score</span>
+              <span className={`font-bold ${topic.coverageScore && topic.coverageScore > 0.7 ? 'text-green-600' : topic.coverageScore && topic.coverageScore > 0.4 ? 'text-amber-600' : 'text-red-600'}`}>
+                {topic.coverageScore ? Math.round(topic.coverageScore * 100) : 0}%
+              </span>
+            </div>
+            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div 
+                className={`h-full ${topic.coverageScore && topic.coverageScore > 0.7 ? 'bg-green-500' : topic.coverageScore && topic.coverageScore > 0.4 ? 'bg-amber-500' : 'bg-red-500'}`}
+                style={{ width: `${topic.coverageScore ? topic.coverageScore * 100 : 0}%` }}
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              {topic.coverageGap 
+                ? `Underrepresented: ${topic.coverageGap.charAt(0).toUpperCase() + topic.coverageGap.slice(1)}`
+                : "All perspectives well represented"}
+            </p>
+          </div>
+        </div>
+
+        {/* Sources by Lean */}
+        <div>
+          <h3 className="font-semibold text-gray-900 mb-3">Top Sources</h3>
+          <div className="space-y-2">
+            {topic.articles.slice(0, 8).map((article, i) => {
+              const details = getSourceDetails(article.sourceDomain || article.source);
+              return (
+                <div key={i} className="flex items-center gap-2 text-sm">
+                  <span className={`w-2 h-2 rounded-full ${article.lean === 'left' ? 'bg-blue-500' : article.lean === 'center' ? 'bg-gray-400' : 'bg-red-500'}`} />
+                  <span className="flex-1 truncate text-gray-700">{article.source}</span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded ${details.factuality > 65 ? 'bg-green-100 text-green-700' : details.factuality > 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                    {details.factuality}%
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Blind Spot Alert */}
+        {topic.coverageGap && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <div className="flex items-start gap-2">
+              <span className="text-amber-500">⚠️</span>
+              <div>
+                <p className="text-sm font-medium text-amber-800">Coverage Blind Spot</p>
+                <p className="text-xs text-amber-700 mt-1">
+                  {topic.coverageGap.charAt(0).toUpperCase() + topic.coverageGap.slice(1)}-lean sources are underrepresented. 
+                  You may be missing important perspectives.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </aside>
+  );
 }
 
-function getMockFacts(title: string): string[] {
-  const facts: Record<string, string[]> = {
-    "Iran": [
-      "Iran's population is approximately 88 million people",
-      "Iran has the 4th largest proven oil reserves globally",
-      "The US withdrew from the JCPOA (Iran nuclear deal) in 2018",
-      "Iran's nuclear enrichment has increased significantly since 2019",
-      "The Strait of Hormuz handles roughly 20% of global oil transit",
-    ],
-    "Policing & Criminal Justice": [
-      "The US has ~2 million people incarcerated — the highest rate globally",
-      "Black Americans are incarcerated at roughly 5x the rate of white Americans",
-      "The US spends approximately $80 billion annually on incarceration",
-      "Recidivism rates hover around 44% within the first year of release",
-      "Private prisons hold approximately 8% of the total prison population",
-      "Violent crime rates have generally declined since the 1990s",
-    ],
-    "Immigration & Border": [
-      "Approximately 11 million undocumented immigrants live in the US",
-      "Immigration courts have a backlog of over 3 million cases",
-      "Immigrants make up about 14% of the US population",
-      "Border apprehensions have fluctuated significantly over the past decade",
-      "The US admits roughly 1 million legal permanent residents per year",
-    ],
-    "Trump Administration": [
-      "Executive orders issued in the first 100 days exceeded recent predecessors",
-      "The DOGE initiative targets federal spending reduction",
-      "Multiple policies face ongoing legal challenges in federal courts",
-      "Trade tariffs have been expanded to additional countries and sectors",
-    ],
-  };
-  return facts[title] || [
-    "This topic is generating significant media coverage across the political spectrum",
-    "Multiple policy proposals are being debated at federal and state levels",
-    "Public opinion polls show the country is divided on this issue",
-  ];
-}
-
-// ── Component ──────────────────────────────────────────────
 export default function TopicPage() {
   const params = useParams();
   const [topic, setTopic] = useState<TrendingTopic | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<Tab>("overview");
+  const [selectedLean, setSelectedLean] = useState<Lean>("left");
+  const [viewTab, setViewTab] = useState<ViewTab>("coverage");
   const [chatOpen, setChatOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -138,26 +223,45 @@ export default function TopicPage() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim() || !topic) return;
     const userMsg: ChatMessage = { role: "user", content: input };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
 
-    // Mock AI responses — will be replaced with real AI
-    setTimeout(() => {
-      const responses = [
-        `That's an interesting perspective on ${topic.title}. Let me push back a bit — have you considered the strongest argument from the other side? For instance, someone who disagrees might say the real issue isn't what you've described, but rather the underlying structural factors that created this situation.`,
-        `I can see where you're coming from. But here's what I'd challenge you on: look at how the ${topic.leftCount} left-leaning sources frame this vs. the ${topic.rightCount} right-leaning ones. They're often looking at the same facts but emphasizing completely different things. What facts might be missing from your current view?`,
-        `Good point. But let me play devil's advocate — what if the opposite were true? Can you articulate the best version of the argument you disagree with? Understanding it doesn't mean agreeing with it, but it does make your own position stronger.`,
-        `That's a common take, and there's merit to it. But consider this: both sides of the debate have valid concerns here. The left worries about fairness and systemic impact. The right worries about unintended consequences and individual rights. Where do you think the real tension lies?`,
-        `Interesting. Let me ask you something harder — what evidence would actually change your mind on this? If you can't identify anything, that might tell you something about how you're approaching the topic.`,
-      ];
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: responses[Math.floor(Math.random() * responses.length)] },
-      ]);
-    }, 1000);
+    const assistantMsg: ChatMessage = { role: "assistant", content: "" };
+    setMessages((prev) => [...prev, assistantMsg]);
+
+    try {
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "chat",
+          topicTitle: topic.title,
+          message: input,
+          chatHistory: messages.map((m) => ({ role: m.role, content: m.content })),
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: "assistant", content: data.response || "I'm having trouble responding right now." };
+          return updated;
+        });
+        return;
+      }
+    } catch {
+      // Fall through to mock responses
+    }
+
+    setMessages((prev) => {
+      const updated = [...prev];
+      updated[updated.length - 1] = { role: "assistant", content: "I'm having trouble responding right now." };
+      return updated;
+    });
   };
 
   if (loading) {
@@ -184,394 +288,391 @@ export default function TopicPage() {
     );
   }
 
-  const overview = getMockOverview(topic.title);
-  const perspectives = getMockPerspectives(topic.title);
-  const facts = getMockFacts(topic.title);
   const articlesByLean = {
     left: topic.articles.filter((a) => a.lean === "left"),
     center: topic.articles.filter((a) => a.lean === "center"),
     right: topic.articles.filter((a) => a.lean === "right"),
   };
 
+  const leanConfig = {
+    left: { label: "Left", bg: "bg-blue-500", text: "text-blue-600", border: "border-blue-200", light: "bg-blue-50" },
+    center: { label: "Center", bg: "bg-gray-500", text: "text-gray-600", border: "border-gray-200", light: "bg-gray-50" },
+    right: { label: "Right", bg: "bg-red-500", text: "text-red-600", border: "border-red-200", light: "bg-red-50" },
+  };
+
+  const currentArticles = articlesByLean[selectedLean];
+  const leanInfo = leanConfig[selectedLean];
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       {/* Nav */}
-      <nav className="border-b border-gray-200 bg-white sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-7 h-7 bg-gradient-to-br from-blue-500 via-gray-500 to-red-500 rounded-lg" />
-              <span className="text-lg font-bold text-gray-900">Perspectives</span>
-            </Link>
-            <span className="text-gray-300">/</span>
-            <span className="text-gray-600 text-sm">{topic.title}</span>
+      <nav className="bg-white border-b border-gray-200 sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Link href="/" className="flex items-center gap-2">
+                <div className="w-7 h-7 bg-gradient-to-br from-blue-500 via-gray-500 to-red-500 rounded-lg" />
+                <span className="text-lg font-bold text-gray-900">CivicMind</span>
+              </Link>
+              <span className="text-gray-300">/</span>
+              <span className="text-gray-600 text-sm">{topic.title}</span>
+            </div>
+            <button
+              onClick={() => setChatOpen(!chatOpen)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+                chatOpen
+                  ? "bg-gray-200 text-gray-700"
+                  : "bg-gray-900 text-white hover:bg-gray-800"
+              }`}
+            >
+              {chatOpen ? "Close" : "Challenge My View"}
+            </button>
           </div>
-          <button
-            onClick={() => setChatOpen(!chatOpen)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
-              chatOpen
-                ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                : "bg-gray-900 text-white hover:bg-gray-800"
-            }`}
-          >
-            {chatOpen ? "Close Chat" : "Challenge My View"}
-          </button>
         </div>
       </nav>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Main content */}
-        <main className={`flex-1 overflow-y-auto transition-all duration-300 ${chatOpen ? "mr-[400px]" : ""}`}>
+        <main className="flex-1 overflow-y-auto">
           {/* Topic header */}
           <div className="bg-white border-b border-gray-200">
-            <div className="max-w-4xl mx-auto px-6 py-8">
+            <div className="max-w-4xl mx-auto px-6 py-6">
               <div className="flex items-center gap-3 mb-3">
                 <span className="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-600">
-                  {topic.scope === "national" ? "US National" : "Global"}
+                  {topic.scope === "national" ? "🇺🇸 US National" : "🌍 Global"}
                 </span>
                 <span className="text-xs text-gray-400">
-                  {topic.articleCount} articles from {topic.articles.length > 0 ? new Set(topic.articles.map(a => a.source)).size : 0} sources
+                  {topic.articleCount} articles
                 </span>
               </div>
               <h1 className="text-3xl font-bold text-gray-900 mb-4">{topic.title}</h1>
-
+              
               {/* Coverage bar */}
-              <div className="max-w-sm">
-                <div className="flex h-2.5 rounded-full overflow-hidden bg-gray-100 mb-2">
-                  {topic.leftCount > 0 && (
-                    <div className="bg-blue-500" style={{ width: `${(topic.leftCount / topic.articleCount) * 100}%` }} />
-                  )}
-                  {topic.centerCount > 0 && (
-                    <div className="bg-gray-400" style={{ width: `${(topic.centerCount / topic.articleCount) * 100}%` }} />
-                  )}
-                  {topic.rightCount > 0 && (
-                    <div className="bg-red-500" style={{ width: `${(topic.rightCount / topic.articleCount) * 100}%` }} />
-                  )}
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex-1 max-w-md">
+                  <div className="flex h-3 rounded-full overflow-hidden">
+                    {topic.leftCount > 0 && (
+                      <div className="bg-blue-500" style={{ width: `${(topic.leftCount / topic.articleCount) * 100}%` }} />
+                    )}
+                    {topic.centerCount > 0 && (
+                      <div className="bg-gray-400" style={{ width: `${(topic.centerCount / topic.articleCount) * 100}%` }} />
+                    )}
+                    {topic.rightCount > 0 && (
+                      <div className="bg-red-500" style={{ width: `${(topic.rightCount / topic.articleCount) * 100}%` }} />
+                    )}
+                  </div>
                 </div>
-                <div className="flex gap-4 text-xs text-gray-500">
+                <div className="flex gap-4 text-xs">
                   <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-blue-500" /> Left ({topic.leftCount})
+                    <span className="w-2 h-2 rounded-full bg-blue-500" />
+                    Left {Math.round((topic.leftCount / topic.articleCount) * 100)}%
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-gray-400" /> Center ({topic.centerCount})
+                    <span className="w-2 h-2 rounded-full bg-gray-400" />
+                    Center {Math.round((topic.centerCount / topic.articleCount) * 100)}%
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-red-500" /> Right ({topic.rightCount})
+                    <span className="w-2 h-2 rounded-full bg-red-500" />
+                    Right {Math.round((topic.rightCount / topic.articleCount) * 100)}%
                   </span>
                 </div>
-              </div>
-            </div>
-
-            {/* Tabs */}
-            <div className="max-w-4xl mx-auto px-6">
-              <div className="flex gap-0 border-b-0">
-                {([
-                  { key: "overview", label: "Overview" },
-                  { key: "perspectives", label: "All Perspectives" },
-                  { key: "articles", label: "Source Articles" },
-                ] as const).map(({ key, label }) => (
-                  <button
-                    key={key}
-                    onClick={() => setTab(key)}
-                    className={`px-5 py-3 text-sm font-medium border-b-2 transition ${
-                      tab === key
-                        ? "border-gray-900 text-gray-900"
-                        : "border-transparent text-gray-500 hover:text-gray-700"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
               </div>
             </div>
           </div>
 
-          {/* Tab content */}
-          <div className="max-w-6xl mx-auto px-6 py-8">
-            {/* ── Overview Tab ── */}
-            {tab === "overview" && (
-              <div className="space-y-8">
-                {/* Neutral summary */}
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900 mb-3">What&apos;s Happening</h2>
-                  <p className="text-gray-700 leading-relaxed">{overview}</p>
-                  <p className="text-xs text-gray-400 mt-2 italic">
-                    This summary aims to be neutral and fact-based. AI-generated content will replace this in a future update.
+          {/* Lean selector tabs */}
+          <div className="bg-white border-b border-gray-200">
+            <div className="max-w-4xl mx-auto px-6">
+              <div className="flex items-center gap-1">
+                {(["left", "center", "right"] as const).map((lean) => (
+                  <button
+                    key={lean}
+                    onClick={() => setSelectedLean(lean)}
+                    className={`px-6 py-4 text-sm font-medium border-b-2 transition ${
+                      selectedLean === lean
+                        ? lean === "left"
+                          ? "border-blue-500 text-blue-600"
+                          : lean === "center"
+                          ? "border-gray-500 text-gray-600"
+                          : "border-red-500 text-red-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+                      lean === "left" ? "bg-blue-500" : lean === "center" ? "bg-gray-400" : "bg-red-500"
+                    }`} />
+                    {leanConfig[lean].label}
+                    <span className="ml-2 text-xs opacity-60">
+                      ({articlesByLean[lean].length})
+                    </span>
+                  </button>
+                ))}
+                <div className="ml-auto flex items-center gap-2">
+                  <button
+                    onClick={() => setViewTab("coverage")}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
+                      viewTab === "coverage"
+                        ? "bg-gray-900 text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    Coverage
+                  </button>
+                  <button
+                    onClick={() => setViewTab("articles")}
+                    className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
+                      viewTab === "articles"
+                        ? "bg-gray-900 text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    Articles
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="max-w-4xl mx-auto px-6 py-6">
+            {viewTab === "coverage" ? (
+              <div className="space-y-6">
+                {/* Summary */}
+                <div className={`${leanInfo.light} border ${leanInfo.border} rounded-xl p-6`}>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className={`w-3 h-3 rounded-full ${leanInfo.bg}`} />
+                    <h2 className={`text-lg font-semibold ${leanInfo.text}`}>                    {leanInfo.label} Perspective</h2>
+                  </div>
+                  <p className="text-gray-700 leading-relaxed mb-4">
+                    {selectedLean === "left" 
+                      ? "Progressive voices typically emphasize systemic approaches, social justice, and government intervention to address root causes. They often prioritize equity, environmental protection, and individual rights, arguing that collective action is necessary to solve major challenges."
+                      : selectedLean === "center"
+                      ? "Center perspectives tend to focus on practical, evidence-based approaches that weigh tradeoffs. They often seek bipartisan solutions and acknowledge complexity, emphasizing data and moderate reforms over ideological extremes."
+                      : "Conservative perspectives often prioritize traditional values, individual responsibility, and limited government. They emphasize free markets, personal liberty, and maintaining social order, arguing that grassroots solutions and private initiative are more effective than top-down approaches."
+                    }
                   </p>
-                </div>
-
-                {/* Key facts */}
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900 mb-3">Key Facts</h2>
-                  <div className="bg-white border border-gray-200 rounded-xl p-5">
-                    <ul className="space-y-3">
-                      {facts.map((fact, i) => (
-                        <li key={i} className="flex items-start gap-3 text-sm text-gray-700">
-                          <span className="w-5 h-5 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-xs font-medium flex-shrink-0 mt-0.5">
-                            {i + 1}
-                          </span>
-                          {fact}
-                        </li>
-                      ))}
-                    </ul>
+                  <div className="flex items-center gap-4 text-sm">
+                    <span className="text-gray-500">{articlesByLean[selectedLean].length} articles in this view</span>
+                    <span className="text-gray-300">|</span>
+                    <span className="text-gray-500">{Array.from(new Set(articlesByLean[selectedLean].map(a => a.source))).length} sources</span>
                   </div>
                 </div>
 
-                {/* Quick perspectives preview */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-lg font-semibold text-gray-900">The Debate at a Glance</h2>
-                    <button
-                      onClick={() => setTab("perspectives")}
-                      className="text-sm text-blue-600 hover:underline"
-                    >
-                      See full perspectives →
-                    </button>
-                  </div>
-                  <div className="grid md:grid-cols-3 gap-4">
-                    {([
-                      { lean: "left" as const, color: "blue", label: "Left View" },
-                      { lean: "center" as const, color: "gray", label: "Center View" },
-                      { lean: "right" as const, color: "red", label: "Right View" },
-                    ]).map(({ lean, color, label }) => (
-                      <div key={lean} className="bg-white border border-gray-200 rounded-xl p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className={`w-2.5 h-2.5 rounded-full bg-${color === "gray" ? "gray-400" : `${color}-500`}`} />
-                          <span className="text-sm font-semibold text-gray-900">{label}</span>
+                {/* Key arguments from this lean */}
+                <div className="bg-white border border-gray-200 rounded-xl p-6">
+                  <h3 className="font-semibold text-gray-900 mb-4">Common Arguments</h3>
+                  <div className="space-y-3">
+                    {selectedLean === "left" ? (
+                      <>
+                        <div className="flex items-start gap-3">
+                          <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0">1</span>
+                          <p className="text-sm text-gray-700">Government intervention is necessary to address systemic inequalities and market failures</p>
                         </div>
-                        <p className="text-sm text-gray-600 line-clamp-3">
-                          {perspectives[lean]}
-                        </p>
-                      </div>
+                        <div className="flex items-start gap-3">
+                          <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0">2</span>
+                          <p className="text-sm text-gray-700">Environmental protection requires strong regulations and investment in clean energy</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold flex-shrink-0">3</span>
+                          <p className="text-sm text-gray-700">Social safety nets and universal programs benefit society as a whole</p>
+                        </div>
+                      </>
+                    ) : selectedLean === "center" ? (
+                      <>
+                        <div className="flex items-start gap-3">
+                          <span className="w-5 h-5 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-bold flex-shrink-0">1</span>
+                          <p className="text-sm text-gray-700">Policy should be based on evidence and practical outcomes rather than ideology</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="w-5 h-5 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-bold flex-shrink-0">2</span>
+                          <p className="text-sm text-gray-700">Bipartisan compromise is often necessary for sustainable solutions</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="w-5 h-5 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-bold flex-shrink-0">3</span>
+                          <p className="text-sm text-gray-700">Economic and social tradeoffs must be carefully weighed</p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-start gap-3">
+                          <span className="w-5 h-5 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xs font-bold flex-shrink-0">1</span>
+                          <p className="text-sm text-gray-700">Individual liberty and personal responsibility are fundamental values</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="w-5 h-5 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xs font-bold flex-shrink-0">2</span>
+                          <p className="text-sm text-gray-700">Free markets and competition drive innovation and prosperity</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="w-5 h-5 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xs font-bold flex-shrink-0">3</span>
+                          <p className="text-sm text-gray-700">Traditional institutions and values provide social stability</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Articles from this lean */}
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-4">Articles from {leanInfo.label}-Leaning Sources</h3>
+                  <div className="space-y-3">
+                    {currentArticles.slice(0, 5).map((article, i) => (
+                      <a
+                        key={i}
+                        href={article.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition"
+                      >
+                        <div className="flex gap-4">
+                          {article.image && (
+                            <img
+                              src={article.image}
+                              alt=""
+                              className="w-24 h-24 object-cover rounded-lg flex-shrink-0"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          )}
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900 mb-1 line-clamp-2">{article.title}</p>
+                            {article.description && (
+                              <p className="text-sm text-gray-500 line-clamp-2 mb-2">{article.description}</p>
+                            )}
+                            <div className="flex items-center gap-2 text-xs text-gray-400">
+                              <span className={`${leanInfo.text} font-medium`}>{article.source}</span>
+                              <span>•</span>
+                              <span>{new Date(article.date).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </a>
                     ))}
                   </div>
                 </div>
               </div>
-            )}
-
-            {/* ── Perspectives Tab ── */}
-            {tab === "perspectives" && (
+            ) : (
               <div className="space-y-4">
-                <p className="text-sm text-gray-500">
-                  These represent the main arguments from each part of the political spectrum.
-                  Understanding all sides makes your own position stronger.
-                </p>
-
-                <div className="grid grid-cols-3 gap-4 items-start">
-                  {([
-                    { lean: "left" as const, label: "Left / Progressive", border: "border-blue-200", bg: "bg-blue-50", dot: "bg-blue-500", header: "bg-blue-600" },
-                    { lean: "center" as const, label: "Center / Moderate", border: "border-gray-200", bg: "bg-gray-50", dot: "bg-gray-400", header: "bg-gray-600" },
-                    { lean: "right" as const, label: "Right / Conservative", border: "border-red-200", bg: "bg-red-50", dot: "bg-red-500", header: "bg-red-600" },
-                  ]).map(({ lean, label, border, bg, dot, header }) => (
-                    <div key={lean} className={`${bg} border ${border} rounded-xl overflow-hidden`}>
-                      <div className={`${header} text-white px-4 py-2.5 text-sm font-semibold`}>
-                        {label}
-                      </div>
-                      <div className="p-4">
-                        <p className="text-sm text-gray-700 leading-relaxed mb-4">
-                          {perspectives[lean]}
-                        </p>
-
-                        {articlesByLean[lean].length > 0 && (
-                          <div>
-                            <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1.5">
-                              Supporting Articles ({articlesByLean[lean].length})
-                            </p>
-                            <div className="space-y-1">
-                              {articlesByLean[lean].slice(0, 5).map((article, i) => (
-                                <a
-                                  key={i}
-                                  href={article.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="block text-xs text-gray-600 hover:text-gray-900 transition line-clamp-1"
-                                >
-                                  <span className="text-gray-300 mr-1">→</span>
-                                  {article.title}
-                                </a>
-                              ))}
-                            </div>
+                <div className="flex items-center justify-between">
+                  <h2 className="font-semibold text-gray-900">
+                    {leanInfo.label} Articles ({currentArticles.length})
+                  </h2>
+                </div>
+                <div className="space-y-3">
+                  {currentArticles.map((article, i) => (
+                    <a
+                      key={i}
+                      href={article.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition group"
+                    >
+                      {article.image && (
+                        <div className="relative h-48 overflow-hidden bg-gray-100">
+                          <img
+                            src={article.image}
+                            alt=""
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                          <div className={`absolute top-3 left-3 px-2 py-1 ${leanInfo.light} ${leanInfo.text} text-xs font-medium rounded`}>
+                            {article.source}
                           </div>
+                        </div>
+                      )}
+                      <div className="p-4">
+                        <h3 className="font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition">
+                          {article.title}
+                        </h3>
+                        {article.description && (
+                          <p className="text-gray-600 text-sm mb-3 line-clamp-3">
+                            {article.description}
+                          </p>
                         )}
+                        <div className="flex items-center justify-between text-xs text-gray-400">
+                          <span>{article.source}</span>
+                          <span>{new Date(article.date).toLocaleDateString()}</span>
+                        </div>
                       </div>
-                    </div>
+                    </a>
                   ))}
                 </div>
-
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
-                  <strong>Note:</strong> These perspective summaries are placeholder content.
-                  AI-generated summaries from the actual articles will replace them in a future update.
-                </div>
-              </div>
-            )}
-
-            {/* ── Articles Tab ── */}
-            {tab === "articles" && (
-              <div className="space-y-4">
-                <p className="text-sm text-gray-500">
-                  Real articles from major outlets, grouped by editorial lean. Sorted by relevance.
-                </p>
-
-                <div className="grid grid-cols-3 gap-4 items-start">
-                  {(["left", "center", "right"] as const).map((lean) => {
-                    const config = {
-                      left: { bg: "bg-blue-50", border: "border-blue-200", header: "bg-blue-600", label: "Left-Leaning", tag: "bg-blue-100 text-blue-700" },
-                      center: { bg: "bg-gray-50", border: "border-gray-200", header: "bg-gray-600", label: "Center", tag: "bg-gray-100 text-gray-700" },
-                      right: { bg: "bg-red-50", border: "border-red-200", header: "bg-red-600", label: "Right-Leaning", tag: "bg-red-100 text-red-700" },
-                    }[lean];
-                    const articles = [...articlesByLean[lean]].sort((a, b) => {
-                      const aHasDesc = a.description && a.description.length > 20 ? 1 : 0;
-                      const bHasDesc = b.description && b.description.length > 20 ? 1 : 0;
-                      if (bHasDesc !== aHasDesc) return bHasDesc - aHasDesc;
-                      return b.date.localeCompare(a.date);
-                    });
-
-                    return (
-                      <div key={lean} className={`${config.bg} border ${config.border} rounded-xl overflow-hidden`}>
-                        <div className={`${config.header} text-white px-4 py-2.5 text-sm font-semibold flex justify-between`}>
-                          <span>{config.label}</span>
-                          <span className="opacity-75">{articles.length}</span>
-                        </div>
-                        <div className="p-2.5 space-y-2.5 max-h-[75vh] overflow-y-auto">
-                          {articles.length === 0 ? (
-                            <p className="text-sm text-gray-400 text-center py-6">
-                              No articles from {lean} sources
-                            </p>
-                          ) : (
-                            articles.map((article, i) => (
-                              <a
-                                key={i}
-                                href={article.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block bg-white rounded-lg overflow-hidden hover:shadow-md transition border border-transparent hover:border-gray-200"
-                              >
-                                {article.image && (
-                                  <img
-                                    src={article.image}
-                                    alt=""
-                                    className="w-full h-32 object-cover"
-                                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                                  />
-                                )}
-                                <div className="p-3">
-                                  <p className="text-sm font-semibold text-gray-900 mb-1 line-clamp-2">
-                                    {article.title}
-                                  </p>
-                                  {article.description && (
-                                    <p className="text-xs text-gray-500 mb-2 line-clamp-3 leading-relaxed">
-                                      {article.description}
-                                    </p>
-                                  )}
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${config.tag}`}>
-                                      {article.source}
-                                    </span>
-                                    <span className="text-[10px] text-gray-400">
-                                      {new Date(article.date).toLocaleDateString("en-US", {
-                                        month: "short",
-                                        day: "numeric",
-                                      })}
-                                    </span>
-                                  </div>
-                                </div>
-                              </a>
-                            ))
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                {currentArticles.length === 0 && (
+                  <div className="text-center py-12 text-gray-400">
+                    <p>No articles from {leanInfo.label.toLowerCase()}-leaning sources</p>
+                    {topic.coverageGap === selectedLean && (
+                      <p className="text-sm mt-2 text-amber-600">This is a coverage blind spot</p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
         </main>
 
-        {/* ── Chat sidebar ── */}
-        {chatOpen && (
-          <aside className="w-[400px] border-l border-gray-200 bg-white flex flex-col fixed right-0 top-[49px] bottom-0 z-20">
-            <div className="px-5 py-4 border-b border-gray-200">
-              <h3 className="font-semibold text-gray-900">Challenge My Thinking</h3>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Share your opinion on {topic.title}. I&apos;ll help you see blind spots and think deeper.
-              </p>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-              {messages.length === 0 && (
-                <div className="text-center text-gray-400 text-sm mt-12 px-4">
-                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3 text-xl">
-                    ?
-                  </div>
-                  <p className="font-medium text-gray-600 mb-1">What do you think about {topic.title}?</p>
-                  <p className="text-xs leading-relaxed">
-                    Share your take, and I&apos;ll push back with counterarguments,
-                    ask you to consider other angles, or help you explore the topic deeper.
-                  </p>
-                  <div className="mt-6 space-y-2">
-                    <p className="text-xs font-medium text-gray-500">Try something like:</p>
-                    {[
-                      `I think the ${topic.title.toLowerCase()} situation is being handled wrong`,
-                      "I don't know much about this — explain it to me",
-                      "What's the strongest argument from each side?",
-                    ].map((suggestion, i) => (
-                      <button
-                        key={i}
-                        onClick={() => {
-                          setInput(suggestion);
-                        }}
-                        className="block w-full text-left text-xs bg-gray-50 hover:bg-gray-100 text-gray-600 px-3 py-2 rounded-lg transition"
-                      >
-                        &ldquo;{suggestion}&rdquo;
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {messages.map((msg, i) => (
-                <div
-                  key={i}
-                  className={`text-sm rounded-xl px-4 py-3 ${
-                    msg.role === "user"
-                      ? "bg-gray-900 text-white ml-8"
-                      : "bg-gray-100 text-gray-800 mr-4"
-                  }`}
-                >
-                  {msg.role === "assistant" && (
-                    <p className="text-xs font-medium text-gray-500 mb-1">Perspectives AI</p>
-                  )}
-                  {msg.content}
-                </div>
-              ))}
-              <div ref={chatEndRef} />
-            </div>
-
-            <div className="p-4 border-t border-gray-200 bg-gray-50">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  placeholder="Share your opinion..."
-                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent bg-white"
-                />
-                <button
-                  onClick={handleSend}
-                  disabled={!input.trim()}
-                  className="bg-gray-900 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-800 transition disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Send
-                </button>
-              </div>
-              <p className="text-[10px] text-gray-400 mt-2 text-center">
-                Responses are placeholder — real AI coming soon
-              </p>
-            </div>
-          </aside>
-        )}
+        {/* Coverage sidebar */}
+        <CoverageSidebar topic={topic} />
       </div>
+
+      {/* Chat sidebar */}
+      {chatOpen && (
+        <aside className="w-[400px] border-l border-gray-200 bg-white flex flex-col fixed right-0 top-[57px] bottom-0 z-20">
+          <div className="px-5 py-4 border-b border-gray-200">
+            <h3 className="font-semibold text-gray-900">Challenge My Thinking</h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Share your opinion. I&apos;ll help you see other perspectives.
+            </p>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+            {messages.length === 0 && (
+              <div className="text-center text-gray-400 text-sm mt-12 px-4">
+                <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3 text-xl">
+                  ?
+                </div>
+                <p className="font-medium text-gray-600 mb-1">What do you think about {topic.title}?</p>
+                <p className="text-xs leading-relaxed">
+                  Share your take, and I&apos;ll help you explore different perspectives.
+                </p>
+              </div>
+            )}
+            {messages.map((msg, i) => (
+              <div
+                key={i}
+                className={`text-sm rounded-xl px-4 py-3 ${
+                  msg.role === "user"
+                    ? "bg-gray-900 text-white ml-8"
+                    : "bg-gray-100 text-gray-800 mr-4"
+                }`}
+              >
+                {msg.role === "assistant" && (
+                  <p className="text-xs font-medium text-gray-500 mb-1">CivicMind AI</p>
+                )}
+                {msg.content}
+              </div>
+            ))}
+            <div ref={chatEndRef} />
+          </div>
+
+          <div className="p-4 border-t border-gray-200 bg-gray-50">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                placeholder="Share your opinion..."
+                className="flex-1 border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white"
+              />
+              <button
+                onClick={handleSend}
+                disabled={!input.trim()}
+                className="bg-gray-900 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-800 transition disabled:opacity-40"
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        </aside>
+      )}
     </div>
   );
 }
