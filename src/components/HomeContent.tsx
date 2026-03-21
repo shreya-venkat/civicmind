@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 
 interface TrendingArticle {
   title: string;
