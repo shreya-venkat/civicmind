@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import gsap from "gsap";
 
 interface QuizQuestion {
   id: number;
@@ -196,6 +197,18 @@ export default function QuizPage() {
   const [answers, setAnswers] = useState<(keyof QuizQuestion["options"])[]>([]);
   const [result, setResult] = useState<ReturnType<typeof calculateResult> | null>(null);
   const [selected, setSelected] = useState<keyof QuizQuestion["options"] | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (cardRef.current) {
+      gsap.from(cardRef.current, {
+        y: 30,
+        opacity: 0,
+        duration: 0.5,
+        ease: "power2.out",
+      });
+    }
+  }, [current]);
 
   const handleAnswer = (answer: keyof QuizQuestion["options"]) => {
     const newAnswers = [...answers, answer];
@@ -216,10 +229,23 @@ export default function QuizPage() {
   };
 
   const restart = () => {
-    setCurrent(0);
-    setAnswers([]);
-    setResult(null);
-    setSelected(null);
+    gsap.to(cardRef.current, {
+      y: -30,
+      opacity: 0,
+      duration: 0.3,
+      onComplete: () => {
+        setCurrent(0);
+        setAnswers([]);
+        setResult(null);
+        setSelected(null);
+        gsap.from(cardRef.current, {
+          y: 30,
+          opacity: 0,
+          duration: 0.5,
+          ease: "power2.out",
+        });
+      },
+    });
   };
 
   if (result) {
@@ -234,52 +260,50 @@ export default function QuizPage() {
 
     return (
       <div className="min-h-screen bg-gray-50">
-        <nav className="border-b border-gray-200 bg-white">
-          <div className="max-w-4xl mx-auto px-6 py-4 flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-7 h-7 bg-gradient-to-br from-blue-500 via-gray-500 to-red-500 rounded-lg" />
-              <span className="text-lg font-bold text-gray-900">Perspectives</span>
+        <nav className="bg-white/80 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-50">
+          <div className="max-w-3xl mx-auto px-6 py-4 flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-3 group">
+              <div className="w-9 h-9 bg-gradient-to-br from-blue-500 via-purple-500 to-red-500 rounded-xl shadow-lg" />
+              <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">CivicMind</span>
             </Link>
-            <span className="text-gray-300">/</span>
-            <span className="text-gray-600 text-sm">Political Quiz</span>
           </div>
         </nav>
 
-        <main className="max-w-4xl mx-auto px-6 py-12">
-          <div className={`${colors.bg} border ${colors.border} rounded-2xl p-8 text-center mb-8`}>
-            <div className="w-16 h-16 rounded-full bg-white border-4 border-gray-200 flex items-center justify-center mx-auto mb-4">
-              <span className="text-3xl font-bold text-gray-900">{result.lean === "left" ? "L" : result.lean === "right" ? "R" : result.lean.includes("left") ? "L+" : result.lean.includes("right") ? "R+" : "C"}</span>
+        <main className="max-w-3xl mx-auto px-6 py-12 space-y-8">
+          <div ref={cardRef} className={`${colors.bg} border ${colors.border} rounded-3xl p-10 text-center shadow-soft`}>
+            <div className="w-20 h-20 rounded-full bg-white border-4 border-gray-200 flex items-center justify-center mx-auto mb-6 shadow-medium">
+              <span className="text-4xl font-bold text-gray-900">{result.lean === "left" ? "L" : result.lean === "right" ? "R" : result.lean.includes("left") ? "L+" : result.lean.includes("right") ? "R+" : "C"}</span>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Your Political Lean: {result.label}</h1>
-            <p className="text-gray-600 max-w-xl mx-auto">{result.description}</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-3">Your Political Lean: {result.label}</h1>
+            <p className="text-gray-600 max-w-lg mx-auto leading-relaxed">{result.description}</p>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-soft">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Bias Awareness Check</h2>
-            <p className="text-gray-600 text-sm leading-relaxed">{result.biasAwareness}</p>
-            <p className="text-gray-500 text-sm mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
-              <strong>Why this matters:</strong> We all have blind spots. Knowing your lean helps you deliberately seek out perspectives you might naturally avoid.
+            <p className="text-gray-600 leading-relaxed">{result.biasAwareness}</p>
+            <p className="text-gray-500 text-sm mt-4 p-4 bg-amber-50 rounded-xl border border-amber-100">
+              <strong className="text-amber-700">Why this matters:</strong> We all have blind spots. Knowing your lean helps you deliberately seek out perspectives you might naturally avoid.
             </p>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-xl p-6 mb-8">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Suggested Topics to Explore</h2>
-            <p className="text-gray-600 text-sm mb-4">Based on your results, here are perspectives you might not be seeing enough:</p>
+          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-soft">
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">Suggested Topics to Explore</h2>
+            <p className="text-gray-500 text-sm mb-5">Based on your results, here are perspectives you might not be seeing enough:</p>
             <div className="grid md:grid-cols-3 gap-4">
               {result.topics.map((t, i) => (
                 <Link
                   key={i}
                   href={`/topic/${t.title.toLowerCase().replace(/\s+/g, "-")}`}
-                  className={`p-4 rounded-lg border ${
-                    t.lean === "left" ? "bg-blue-50 border-blue-200" : t.lean === "right" ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200"
-                  } hover:shadow-md transition`}
+                  className={`p-5 rounded-xl border transition-all hover:-translate-y-1 hover:shadow-lg ${
+                    t.lean === "left" ? "bg-blue-50 border-blue-100 hover:border-blue-200" : t.lean === "right" ? "bg-red-50 border-red-100 hover:border-red-200" : "bg-gray-50 border-gray-100 hover:border-gray-200"
+                  }`}
                 >
-                  <span className={`text-xs font-medium ${
+                  <span className={`text-xs font-semibold ${
                     t.lean === "left" ? "text-blue-600" : t.lean === "right" ? "text-red-600" : "text-gray-600"
                   }`}>
                     {t.lean.charAt(0).toUpperCase() + t.lean.slice(1)} Perspective
                   </span>
-                  <p className="font-medium text-gray-900 mt-1">{t.title}</p>
+                  <p className="font-semibold text-gray-900 mt-2">{t.title}</p>
                 </Link>
               ))}
             </div>
@@ -288,13 +312,13 @@ export default function QuizPage() {
           <div className="flex gap-4">
             <button
               onClick={restart}
-              className="flex-1 py-3 px-6 border border-gray-300 rounded-xl font-medium text-gray-700 hover:bg-gray-50 transition"
+              className="flex-1 py-4 px-6 border border-gray-200 rounded-xl font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all"
             >
               Retake Quiz
             </button>
             <Link
               href="/"
-              className="flex-1 py-3 px-6 bg-gray-900 text-white rounded-xl font-medium text-center hover:bg-gray-800 transition"
+              className="flex-1 py-4 px-6 bg-gray-900 text-white rounded-xl font-medium text-center hover:bg-gray-800 transition-all hover:shadow-lg"
             >
               Explore Topics
             </Link>
@@ -309,36 +333,34 @@ export default function QuizPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="border-b border-gray-200 bg-white">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-gradient-to-br from-blue-500 via-gray-500 to-red-500 rounded-lg" />
-            <span className="text-lg font-bold text-gray-900">Perspectives</span>
+      <nav className="bg-white/80 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-50">
+        <div className="max-w-3xl mx-auto px-6 py-4 flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="w-9 h-9 bg-gradient-to-br from-blue-500 via-purple-500 to-red-500 rounded-xl shadow-lg" />
+            <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">CivicMind</span>
           </Link>
-          <span className="text-gray-300">/</span>
-          <span className="text-gray-600 text-sm">Political Quiz</span>
         </div>
       </nav>
 
-      <main className="max-w-4xl mx-auto px-6 py-12">
-        <div className="mb-8">
+      <main className="max-w-3xl mx-auto px-6 py-12">
+        <div ref={cardRef} className="mb-8">
           <div className="flex justify-between text-sm text-gray-500 mb-2">
             <span>Question {current + 1} of {QUESTIONS.length}</span>
             <span>{Math.round(progress)}% complete</span>
           </div>
-          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-blue-500 to-red-500 transition-all duration-500"
+              className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-red-500 transition-all duration-500 ease-out"
               style={{ width: `${progress}%` }}
             />
           </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-2xl p-8">
-          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+        <div ref={cardRef} className="bg-white border border-gray-100 rounded-3xl p-8 shadow-soft">
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
             {question.category}
           </span>
-          <h2 className="text-xl font-semibold text-gray-900 mt-2 mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 mt-2 mb-8 leading-snug">
             {question.question}
           </h2>
 
@@ -346,49 +368,49 @@ export default function QuizPage() {
             {(["left", "center", "right"] as const).map((option) => {
               const isSelected = selected === option;
               const colors = {
-                left: "border-blue-200 hover:border-blue-400",
-                center: "border-gray-200 hover:border-gray-400",
-                right: "border-red-200 hover:border-red-400",
+                left: "border-blue-200 hover:border-blue-400 hover:bg-blue-50/30",
+                center: "border-gray-200 hover:border-gray-400 hover:bg-gray-50/50",
+                right: "border-red-200 hover:border-red-400 hover:bg-red-50/30",
               };
               const labelColors = {
-                left: "text-blue-600 bg-blue-50",
-                center: "text-gray-600 bg-gray-50",
-                right: "text-red-600 bg-red-50",
+                left: "text-blue-600 bg-blue-100",
+                center: "text-gray-600 bg-gray-100",
+                right: "text-red-600 bg-red-100",
               };
 
               return (
                 <button
                   key={option}
                   onClick={() => handleAnswer(option)}
-                  className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
-                    isSelected ? colors[option] + " bg-opacity-50" : "border-gray-200 hover:border-gray-300"
+                  className={`w-full text-left p-5 rounded-xl border-2 transition-all duration-300 ${
+                    isSelected ? colors[option] + " bg-opacity-50" : "border-gray-100 hover:border-gray-200 hover:shadow-md"
                   }`}
                 >
-                  <div className="flex items-start gap-3">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${labelColors[option]}`}>
+                  <div className="flex items-start gap-4">
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${labelColors[option]}`}>
                       {option.charAt(0).toUpperCase() + option.slice(1)}
                     </span>
-                    <span className="text-gray-700">{question.options[option]}</span>
+                    <span className="text-gray-700 leading-relaxed">{question.options[option]}</span>
                   </div>
                 </button>
               );
             })}
           </div>
 
-          <p className="text-xs text-gray-400 mt-6 text-center">
+          <p className="text-xs text-gray-400 mt-8 text-center">
             We don&apos;t store your answers. This quiz is for self-reflection, not data collection.
           </p>
         </div>
 
-        <div className="mt-6 flex justify-center gap-6 text-xs text-gray-400">
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-blue-500" /> Left
+        <div className="mt-8 flex justify-center gap-8 text-sm text-gray-400">
+          <span className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-blue-500" /> Left
           </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-gray-400" /> Center
+          <span className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-gray-400" /> Center
           </span>
-          <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-red-500" /> Right
+          <span className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-red-500" /> Right
           </span>
         </div>
       </main>

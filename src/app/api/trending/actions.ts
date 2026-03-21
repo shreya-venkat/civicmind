@@ -1,30 +1,47 @@
 "use server";
 
-import { NextResponse } from "next/server";
+interface TrendingArticle {
+  title: string;
+  url: string;
+  source: string;
+  sourceDomain?: string;
+  lean: "left" | "center" | "right";
+  date: string;
+  image: string | null;
+  description: string | null;
+}
 
-export async function getTrendingTopics() {
-  const API_KEY = process.env.NEWSAPI_KEY;
+interface TrendingTopic {
+  id: string;
+  title: string;
+  description: string;
+  scope: "national" | "global";
+  articleCount: number;
+  articles: TrendingArticle[];
+  leftCount: number;
+  centerCount: number;
+  rightCount: number;
+  coverageGap?: "left" | "center" | "right" | null;
+  coverageScore?: number;
+}
+
+interface TrendingData {
+  topics: TrendingTopic[];
+  updatedAt: string;
+}
+
+export async function getTrendingTopics(): Promise<TrendingData> {
   
-  const g = globalThis as Record<string, unknown>;
+  const g = globalThis as Record<string, unknown> & { __newsapiCache?: TrendingData };
   const CACHE_DURATION = 30 * 60 * 1000;
   const cacheTime = (g.__newsapiCacheTime as number) || 0;
-  const cache = g.__newsapiCache as { topics: unknown[]; updatedAt: string } | undefined;
+  const cache = g.__newsapiCache as TrendingData | undefined;
 
   if (cache && cache.topics.length > 0 && Date.now() - cacheTime < CACHE_DURATION) {
     return cache;
   }
 
   try {
-    const headers = { "Content-Type": "application/json" };
-    
-    const [leftRes, centerLeftRes, centerRes, centerRightRes, rightRes] = await Promise.all([
-      fetch(`https://newsapi.org/v2/everything?q=trump OR congress OR president&domains=motherjones.com,rawstory.com,dailykos.com,theintercept.com,huffpost.com,msnbc.com,nbcnews.com,cnn.com&language=en&sortBy=publishedAt&pageSize=20&apiKey=${API_KEY}`, { headers, next: { revalidate: 0 } }),
-      fetch(`https://newsapi.org/v2/everything?q=trump OR congress OR president&domains=vox.com,slate.com,theatlantic.com,thehill.com&language=en&sortBy=publishedAt&pageSize=20&apiKey=${API_KEY}`, { headers, next: { revalidate: 0 } }),
-      fetch(`https://newsapi.org/v2/everything?q=trump OR congress OR president&domains=apnews.com,reuters.com,npr.org,bloomberg.com,axios.com&language=en&sortBy=publishedAt&pageSize=20&apiKey=${API_KEY}`, { headers, next: { revalidate: 0 } }),
-      fetch(`https://newsapi.org/v2/everything?q=trump OR congress OR president&domains=thehill.com,bbc.com,guardian.co.uk&language=en&sortBy=publishedAt&pageSize=20&apiKey=${API_KEY}`, { headers, next: { revalidate: 0 } }),
-      fetch(`https://newsapi.org/v2/everything?q=trump OR congress OR president&domains=foxnews.com,nypost.com,dailywire.com,breitbart.com,dailycaller.com&language=en&sortBy=publishedAt&pageSize=20&apiKey=${API_KEY}`, { headers, next: { revalidate: 0 } }),
-    ]);
-
     const topics = generateSampleTopics();
     const result = { topics, updatedAt: new Date().toISOString() };
     
@@ -41,7 +58,7 @@ export async function getTrendingTopics() {
   }
 }
 
-function generateSampleTopics() {
+function generateSampleTopics(): TrendingTopic[] {
   return [
     {
       id: "trump-administration",
