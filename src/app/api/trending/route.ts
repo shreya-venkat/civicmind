@@ -1,7 +1,21 @@
 import { NextResponse } from "next/server";
 import { getSourceLean, simplifyLean } from "../../data/source-bias";
 
-const API_KEY = process.env.NEWSAPI_KEY;
+const NEWSAPI_KEY = process.env.NEWSAPI_KEY;
+const GUARDIAN_KEY = process.env.GUARDIAN_KEY;
+
+// Guardian API types
+interface GuardianArticle {
+  id: string;
+  webTitle: string;
+  webUrl: string;
+  webPublicationDate: string;
+  fields?: {
+    thumbnail?: string;
+    trailText?: string;
+  };
+  sectionId: string;
+}
 
 // ── Types ──────────────────────────────────────────────────
 export interface TrendingArticle {
@@ -360,7 +374,7 @@ function extractDomain(url: string): string {
 
 async function fetchFromDomains(domains: string, label: string): Promise<NewsAPIArticle[]> {
   // Filter to political content only, sorted by most recent
-  const url = `https://newsapi.org/v2/everything?domains=${domains}&q=${POLITICAL_QUERY}&language=en&sortBy=publishedAt&pageSize=100&apiKey=${API_KEY}`;
+  const url = `https://newsapi.org/v2/everything?domains=${domains}&q=${POLITICAL_QUERY}&language=en&sortBy=publishedAt&pageSize=100&apiKey=${NEWSAPI_KEY}`;
 
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) {
@@ -386,6 +400,40 @@ async function fetchNewsAPIArticles(): Promise<NewsAPIArticle[]> {
   const total = left.length + centerLeft.length + center.length + centerRight.length + right.length;
   console.log(`[NewsAPI] Total: ${left.length} left + ${centerLeft.length} center-left + ${center.length} center + ${centerRight.length} center-right + ${right.length} right = ${total}`);
   return [...left, ...centerLeft, ...center, ...centerRight, ...right];
+}
+
+async function fetchGuardianArticles(): Promise<NewsAPIArticle[]> {
+  if (!GUARDIAN_KEY) {
+    console.log("[Guardian] No API key configured");
+    return [];
+  }
+
+  try {
+    const politicalTerms = POLITICAL_QUERY.replace(/%20OR%20/g, ",");
+    const url = `https://content.guardianapis.com/search?q=${politicalTerms}&api-key=${GUARDIAN_KEY}&show-fields=thumbnail,trailText&page-size=100&order-by=newest`;
+    
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) {
+      console.log("[Guardian] API error:", res.status);
+      return [];
+    }
+
+    const data = await res.json();
+    const results = data.response?.results || [];
+    console.log("[Guardian] Got", results.length, "articles");
+
+    return results.map((art: GuardianArticle) => ({
+      title: art.webTitle,
+      url: art.webUrl,
+      description: art.fields?.trailText || null,
+      urlToImage: art.fields?.thumbnail || null,
+      publishedAt: art.webPublicationDate,
+      source: { id: art.sectionId, name: "The Guardian" },
+    }));
+  } catch (err) {
+    console.error("[Guardian] Error:", err);
+    return [];
+  }
 }
 
 // ── Topic matching (broad) ────────────────────────────────
@@ -529,34 +577,43 @@ export async function GET() {
     return NextResponse.json(cache);
   }
 
+  let articles: NewsAPIArticle[] = [];
+
+  // Try NewsAPI first
   try {
-    const articles = await fetchNewsAPIArticles();
-    const topics = buildTrendingTopics(articles);
-    console.log(`[NewsAPI] Matched into ${topics.length} topics`);
-
-    const result = { topics, updatedAt: new Date().toISOString() };
-
-    if (topics.length > 0) {
-      g.__newsapiCache = result;
-      g.__newsapiCacheTime = now;
-    }
-
-    if (topics.length === 0) {
-      console.log("[Trending API] No topics built, returning sample topics");
-      const sampleTopics = getSampleTopics();
-      console.log(`[NewsAPI] No topics from API, using ${sampleTopics.length} sample topics`);
-      return NextResponse.json({ topics: sampleTopics, updatedAt: new Date().toISOString() });
-    }
-
-    return NextResponse.json(result);
+    articles = await fetchNewsAPIArticles();
+    console.log(`[Trending] NewsAPI got ${articles.length} articles`);
   } catch (err) {
-    console.error(`[NewsAPI] Error:`, err);
-    if (cache && cache.topics.length > 0) {
-      return NextResponse.json(cache);
-    }
-    console.log("[Trending API] Returning sample topics");
-    return NextResponse.json({ topics: getSampleTopics(), updatedAt: new Date().toISOString() });
+    console.error(`[Trending] NewsAPI error:`, err);
   }
+
+  // If NewsAPI failed or returned nothing, try Guardian
+  if (articles.length === 0) {
+    console.log("[Trending] NewsAPI failed, trying Guardian...");
+    try {
+      articles = await fetchGuardianArticles();
+      console.log(`[Trending] Guardian got ${articles.length} articles`);
+    } catch (err) {
+      console.error(`[Trending] Guardian error:`, err);
+    }
+  }
+
+  // Build topics from articles
+  const topics = buildTrendingTopics(articles);
+  console.log(`[Trending] Matched into ${topics.length} topics`);
+
+  const result = { topics, updatedAt: new Date().toISOString() };
+
+  if (topics.length > 0) {
+    g.__newsapiCache = result;
+    g.__newsapiCacheTime = now;
+    return NextResponse.json(result);
+  }
+
+  // No topics, return sample
+  console.log("[Trending] No topics, returning samples");
+  const sampleTopics = getSampleTopics();
+  return NextResponse.json({ topics: sampleTopics, updatedAt: new Date().toISOString() });
 }
 
 function getSampleTopics(): TrendingTopic[] {
