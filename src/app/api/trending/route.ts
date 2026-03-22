@@ -581,18 +581,23 @@ export async function GET() {
 
   // Try NewsAPI first
   try {
-    articles = await fetchNewsAPIArticles();
-    console.log(`[Trending] NewsAPI got ${articles.length} articles`);
+    const newsapiArticles = await fetchNewsAPIArticles();
+    if (newsapiArticles.length > 0) {
+      articles = newsapiArticles;
+      console.log(`[Trending] NewsAPI got ${articles.length} articles`);
+    }
   } catch (err) {
     console.error(`[Trending] NewsAPI error:`, err);
   }
 
-  // If NewsAPI failed or returned nothing, try Guardian
-  if (articles.length === 0) {
-    console.log("[Trending] NewsAPI failed, trying Guardian...");
+  // Also try Guardian for more sources
+  if (GUARDIAN_KEY) {
     try {
-      articles = await fetchGuardianArticles();
-      console.log(`[Trending] Guardian got ${articles.length} articles`);
+      const guardianArticles = await fetchGuardianArticles();
+      if (guardianArticles.length > 0) {
+        articles = [...articles, ...guardianArticles];
+        console.log(`[Trending] Guardian added ${guardianArticles.length} articles (total: ${articles.length})`);
+      }
     } catch (err) {
       console.error(`[Trending] Guardian error:`, err);
     }
