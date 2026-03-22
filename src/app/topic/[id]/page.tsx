@@ -34,6 +34,12 @@ interface ChatMessage {
   content: string;
 }
 
+interface AIPerspectives {
+  left: string;
+  center: string;
+  right: string;
+}
+
 type Lean = "left" | "center" | "right";
 
 function BiasBar({ topic }: { topic: TrendingTopic }) {
@@ -132,6 +138,8 @@ export default function TopicPage() {
   const [chatOpen, setChatOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const [aiPerspectives, setAiPerspectives] = useState<AIPerspectives | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -146,6 +154,34 @@ export default function TopicPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [params.id]);
+
+  useEffect(() => {
+    if (!topic || topic.articles.length === 0) return;
+    
+    setAiLoading(true);
+    fetch("/api/ai", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "perspectives",
+        topicTitle: topic.title,
+        articles: topic.articles.slice(0, 10).map((a) => ({
+          title: a.title,
+          description: a.description,
+          source: a.source,
+          lean: a.lean,
+        })),
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.left && data.center && data.right) {
+          setAiPerspectives(data);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setAiLoading(false));
+  }, [topic]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -267,6 +303,46 @@ export default function TopicPage() {
               <BiasBar topic={topic} />
             </div>
           </div>
+
+          {/* AI Perspectives */}
+          {aiLoading ? (
+            <div className="max-w-3xl mx-auto px-6 py-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm text-zinc-500">Generating perspectives...</span>
+              </div>
+            </div>
+          ) : aiPerspectives ? (
+            <div className="max-w-3xl mx-auto px-6 py-8">
+              <div className="flex items-center gap-2 mb-6">
+                <div className="w-5 h-5 bg-gradient-to-br from-blue-500 via-purple-500 to-red-500 rounded-md" />
+                <span className="text-sm font-medium text-zinc-400">AI Analysis</span>
+              </div>
+              <div className="grid md:grid-cols-3 gap-4">
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-500" />
+                    <span className="text-sm font-medium text-blue-400">Left</span>
+                  </div>
+                  <p className="text-sm text-zinc-300 leading-relaxed">{aiPerspectives.left}</p>
+                </div>
+                <div className="bg-zinc-800/50 border border-zinc-700 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-2 h-2 rounded-full bg-zinc-500" />
+                    <span className="text-sm font-medium text-zinc-400">Center</span>
+                  </div>
+                  <p className="text-sm text-zinc-300 leading-relaxed">{aiPerspectives.center}</p>
+                </div>
+                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-2 h-2 rounded-full bg-red-500" />
+                    <span className="text-sm font-medium text-red-400">Right</span>
+                  </div>
+                  <p className="text-sm text-zinc-300 leading-relaxed">{aiPerspectives.right}</p>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {/* Lean selector */}
           <div className="border-b border-zinc-800">
