@@ -314,7 +314,6 @@ export default function TopicPage() {
   const [topic, setTopic] = useState<TrendingTopic | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedLean, setSelectedLean] = useState<Lean | null>(null);
-  const [previousLean, setPreviousLean] = useState<Lean | null>(null);
   const [compareMode, setCompareMode] = useState(false);
   const [compareLeft, setCompareLeft] = useState<Lean>("left");
   const [compareRight, setCompareRight] = useState<Lean>("right");
@@ -325,16 +324,6 @@ export default function TopicPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [compareLoading, setCompareLoading] = useState(false);
   const [compareAnalysis, setCompareAnalysis] = useState<{ left: AIDeepDive | null; right: AIDeepDive | null }>({ left: null, right: null });
-
-  const toggleCompareMode = useCallback(() => {
-    if (compareMode) {
-      setCompareMode(false);
-      setSelectedLean(previousLean);
-    } else {
-      setPreviousLean(selectedLean);
-      setCompareMode(true);
-    }
-  }, [compareMode, selectedLean, previousLean]);
 
   useEffect(() => {
     fetch("/api/trending")
@@ -486,17 +475,29 @@ export default function TopicPage() {
   return (
     <div className="min-h-screen bg-zinc-950">
       {/* Nav */}
-      <nav className="border-b border-zinc-800 sticky top-0 z-30 bg-zinc-950/80 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+      <nav className="border-b border-zinc-800/50 sticky top-0 z-30 bg-zinc-950/80 backdrop-blur-xl">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-6">
               <Link href="/" className="flex items-center gap-3">
                 <div className="w-9 h-9 bg-gradient-to-br from-blue-500 via-purple-500 to-red-500 rounded-xl shadow-lg" />
-                <span className="text-lg font-semibold">inFormed</span>
+                <span className="text-lg font-semibold text-white">inFormed</span>
               </Link>
-              <span className="text-zinc-700">/</span>
-              <span className="text-zinc-400 text-sm">{topic.title}</span>
+              <div className="flex items-center gap-1">
+                <Link href="/" className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-colors rounded-lg">
+                  Home
+                </Link>
+                <Link href="/#topics" className="px-4 py-2 text-sm font-medium text-white transition-colors rounded-lg">
+                  Topics
+                </Link>
+              </div>
             </div>
+            <Link 
+              href="/quiz" 
+              className="px-4 py-2 text-sm font-medium bg-white text-black hover:bg-zinc-200 transition-colors rounded-lg"
+            >
+              Take the Quiz
+            </Link>
           </div>
         </div>
       </nav>
@@ -505,23 +506,27 @@ export default function TopicPage() {
         {/* Main content */}
         <main className="flex-1">
           {/* Topic header */}
-          <div className="border-b border-zinc-800">
+          <div className="border-b border-zinc-800/50">
             <div className="max-w-4xl mx-auto px-6 py-8">
               <div className="flex items-center gap-3 mb-4">
-                <span className="text-xs font-medium px-2 py-0.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-800">
+                <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
+                  topic.scope === 'national' 
+                    ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' 
+                    : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                }`}>
                   {topic.scope === "national" ? "🇺🇸 National" : "🌍 Global"}
                 </span>
-                <span className="text-xs text-zinc-600">
+                <span className="text-xs text-zinc-500">
                   {topic.articleCount} articles
                 </span>
               </div>
-              <h1 className="text-3xl font-bold tracking-tight mb-6">{topic.title}</h1>
+              <h1 className="text-3xl font-bold tracking-tight mb-6 text-white">{topic.title}</h1>
               <BiasBar topic={topic} />
             </div>
           </div>
 
-          {/* Mode Toggle + Lean tabs */}
-          <div className="border-b border-zinc-800">
+          {/* Lean tabs */}
+          <div className="border-b border-zinc-800/50">
             <div className="max-w-4xl mx-auto px-6">
               <div className="flex items-center justify-between py-4">
                 {/* Lean tabs */}
@@ -536,13 +541,13 @@ export default function TopicPage() {
                         key={lean}
                         onClick={() => { setSelectedLean(isSelected ? null : lean); setCompareMode(false); }}
                         className={`flex items-center gap-2 px-5 py-2.5 rounded-xl border transition-all ${
-                          isSelected && !compareMode
+                          isSelected
                             ? `${config.border} ${config.bg}`
                             : 'border-zinc-800 bg-zinc-900/50 hover:border-zinc-700'
                         }`}
                       >
                         <span className={`w-2.5 h-2.5 rounded-full ${config.dot}`} />
-                        <span className={`text-sm font-medium ${isSelected && !compareMode ? config.text : 'text-zinc-400'}`}>
+                        <span className={`text-sm font-medium ${isSelected ? config.text : 'text-zinc-400'}`}>
                           {config.label}
                         </span>
                         <span className="text-xs text-zinc-600">({count})</span>
@@ -551,22 +556,40 @@ export default function TopicPage() {
                   })}
                 </div>
 
-                {/* Compare toggle */}
-                <button
-                  onClick={toggleCompareMode}
-                  className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all ${
-                    compareMode
-                      ? 'bg-indigo-600 border-indigo-600 text-white'
-                      : 'border-zinc-800 bg-zinc-900/50 hover:border-zinc-700 text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  {compareMode ? 'Exit Compare' : 'Compare Views'}
-                </button>
+                {/* Compare toggle - only show when a lean is selected */}
+                {selectedLean && (
+                  <button
+                    onClick={() => setCompareMode(!compareMode)}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                      compareMode
+                        ? 'bg-indigo-600 border-indigo-600 text-white'
+                        : 'border-zinc-800 bg-zinc-900/50 hover:border-zinc-700 text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    {compareMode ? (
+                      <>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        </svg>
+                        Single View
+                      </>
+                    ) : (
+                      <>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="3" y="3" width="8" height="18" rx="1"/>
+                          <rect x="13" y="3" width="8" height="18" rx="1"/>
+                        </svg>
+                        Compare
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
 
               {/* Compare perspective selectors */}
               {compareMode && (
-                <div className="flex items-center gap-2 pb-4">
+                <div className="flex items-center gap-3 pb-4">
+                  <span className="text-xs text-zinc-500">Compare</span>
                   <div className="flex gap-1">
                     {(["left", "center", "right"] as const).map((lean) => (
                       <button
