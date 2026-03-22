@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
 interface RequestBody {
   type: "summarize" | "perspectives" | "chat";
@@ -16,7 +16,7 @@ interface RequestBody {
   chatHistory?: Array<{ role: string; content: string }>;
 }
 
-const PERSPECTIVES_PROMPT = `You are a neutral political analyst. For the given topic and news articles, provide the strongest, most charitable arguments from three perspectives.
+const PERSPECTIVES_PROMPT = `You are a neutral political analyst. Based on the articles provided, summarize what each perspective is saying about this topic.
 
 Return your response as a JSON object with exactly these keys: "left", "center", "right"
 
@@ -40,18 +40,20 @@ Rules:
 - Keep responses to 2-3 sentences
 - Do not be preachy`;
 
-async function callGemini(prompt: string): Promise<string> {
+async function callGroq(prompt: string): Promise<string> {
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+    "https://api.groq.com/openai/v1/chat/completions",
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${GROQ_API_KEY}`
+      },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          temperature: 0.3,
-        },
+        model: "llama-3.1-8b-instant",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.3,
+        max_tokens: 500
       }),
     }
   );
@@ -62,13 +64,13 @@ async function callGemini(prompt: string): Promise<string> {
   }
 
   const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  return data.choices?.[0]?.message?.content || "";
 }
 
 export async function POST(request: Request) {
-  if (!GEMINI_API_KEY) {
+  if (!GROQ_API_KEY) {
     return NextResponse.json(
-      { error: "AI not configured. Add GEMINI_API_KEY to .env" },
+      { error: "AI not configured. Add GROQ_API_KEY to .env" },
       { status: 503 }
     );
   }
@@ -93,10 +95,11 @@ Topic: ${topicTitle}
 Articles:
 ${articleContext}`;
 
-      const result = await callGemini(prompt);
+      const result = await callGroq(prompt);
       
       try {
-        const parsed = JSON.parse(result);
+        const cleaned = result.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        const parsed = JSON.parse(cleaned);
         return NextResponse.json(parsed);
       } catch {
         return NextResponse.json({ 
@@ -123,7 +126,7 @@ ${historyText}
 
 User: ${message}`;
 
-      const result = await callGemini(prompt);
+      const result = await callGroq(prompt);
       return NextResponse.json({ response: result });
     }
 
