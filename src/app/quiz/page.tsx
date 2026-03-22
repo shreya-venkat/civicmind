@@ -7,236 +7,266 @@ import gsap from "gsap";
 interface QuizQuestion {
   id: number;
   question: string;
-  category: "economic" | "social" | "foreign" | "governance";
-  options: {
-    left: string;
-    center: string;
-    right: string;
-  };
+  category: "economics" | "society" | "world" | "government";
+  left: string;
+  center: string;
+  right: string;
 }
 
 const QUESTIONS: QuizQuestion[] = [
   {
     id: 1,
-    question: "The federal government should play a major role in:",
-    category: "economic",
-    options: {
-      left: "Providing healthcare, education, and safety nets for all citizens",
-      center: "Ensuring basic services while encouraging private sector innovation",
-      right: "Limited to protecting property rights and national defense only",
-    },
+    question: "When you hear 'government spending,' what comes to mind?",
+    category: "economics",
+    left: "Investment in people and infrastructure",
+    center: "A tool that should be used carefully and wisely",
+    right: "Someone else's money being wasted",
   },
   {
     id: 2,
-    question: "On immigration, the best approach is:",
-    category: "governance",
-    options: {
-      left: "Pathways to citizenship and protections for undocumented immigrants",
-      center: "Secure borders with balanced immigration reform",
-      right: "Strict border enforcement and reduced legal immigration",
-    },
+    question: "A company pollutes a river. Who should fix it?",
+    category: "government",
+    left: "The government should regulate and fine them",
+    center: "Regulations with reasonable compliance timelines",
+    right: "The free market will penalize them naturally",
   },
   {
     id: 3,
-    question: "Climate change requires:",
-    category: "economic",
-    options: {
-      left: "Aggressive government action and green energy investment",
-      center: "Market-based solutions with some regulation",
-      right: "Minimal government intervention, let markets adapt",
-    },
+    question: "Your neighbor can't afford healthcare. How do you feel?",
+    category: "society",
+    left: "We should have a system that covers everyone",
+    center: "We should help but through multiple pathways",
+    right: "That's their problem, not mine",
   },
   {
     id: 4,
-    question: "The best way to reduce inequality is through:",
-    category: "economic",
-    options: {
-      left: "Progressive taxation and social welfare programs",
-      center: "Education access and job training programs",
-      right: "Economic growth and reduced regulation",
-    },
+    question: "The US should primarily see itself as:",
+    category: "world",
+    left: "A partner among nations, building cooperation",
+    center: "A global leader with both allies and adversaries",
+    right: "An independent nation focused on its own interests",
   },
   {
     id: 5,
-    question: "On foreign policy, the US should:",
-    category: "foreign",
-    options: {
-      left: "Lead through diplomacy and international cooperation",
-      center: "Maintain strong alliances while protecting interests",
-      right: "Prioritize national interests over global commitments",
-    },
+    question: "On climate change, the best approach is:",
+    category: "economics",
+    left: "Aggressive government action now, whatever the cost",
+    center: "Balance environmental goals with economic reality",
+    right: "Let innovation and markets solve it naturally",
   },
   {
     id: 6,
-    question: "Healthcare should be:",
-    category: "economic",
-    options: {
-      left: "A universal public right like education",
-      center: "A mix of public and private options",
-      right: "Primarily handled by the private market",
-    },
+    question: "When you disagree with someone politically, you usually think:",
+    category: "society",
+    left: "They haven't been exposed to the right information",
+    center: "We see different trade-offs in the same issues",
+    right: "They haven't thought it through carefully enough",
   },
   {
     id: 7,
-    question: "On social issues, government should:",
-    category: "social",
-    options: {
-      left: "Actively promote equality and protect minority rights",
-      center: "Balance individual freedoms with social stability",
-      right: "Limit social engineering and protect traditional values",
-    },
+    question: "Immigration primarily:",
+    category: "government",
+    left: "Enriches our culture and economy",
+    center: "Has both benefits and challenges to manage",
+    right: "Poses risks to security and jobs",
   },
   {
     id: 8,
-    question: "The best economic policy during a recession is:",
-    category: "economic",
-    options: {
-      left: "Increased government spending to stimulate demand",
-      center: "Targeted support combined with monetary policy",
-      right: "Tax cuts and reduced government intervention",
-    },
+    question: "Taxes are essentially:",
+    category: "economics",
+    left: "How we pool resources for collective good",
+    center: "Necessary but should be efficient and fair",
+    right: "Theft from hard workers",
   },
   {
     id: 9,
-    question: "Trade policy should prioritize:",
-    category: "economic",
-    options: {
-      left: "Fair trade with labor and environmental standards",
-      center: "Open markets with balanced protections",
-      right: "Protecting domestic jobs above all else",
-    },
+    question: "Which statement feels most true to you?",
+    category: "society",
+    left: "Society has obligations to help the less fortunate",
+    center: "People should have freedom to succeed or fail",
+    right: "People should pull themselves up by their bootstraps",
   },
   {
     id: 10,
-    question: "The role of taxes is primarily to:",
-    category: "governance",
-    options: {
-      left: "Redistribute wealth and fund social programs",
-      center: "Fund essential government services efficiently",
-      right: "Minimize burden to encourage economic growth",
-    },
+    question: "The best decisions are made:",
+    category: "government",
+    left: "By experts with data and evidence",
+    center: "Through democratic debate and compromise",
+    right: "At the local level, closest to the people",
   },
 ];
 
-function getResult(scores: Record<string, number>) {
+type Lean = "left" | "center-left" | "center" | "center-right" | "right";
+
+function getResult(scores: Record<string, number>): { lean: Lean; label: string; description: string; color: string } {
   const left = scores.left || 0;
   const center = scores.center || 0;
   const right = scores.right || 0;
   const total = left + center + right;
 
-  if (total === 0) return null;
+  if (total === 0) return { lean: "center", label: "Center", description: "", color: "zinc" };
 
   const leftPct = (left / total) * 100;
   const rightPct = (right / total) * 100;
 
-  if (leftPct > 60) return { lean: "left", label: "Left", description: "You tend to favor government intervention to address social and economic inequality. You likely support policies like universal healthcare, progressive taxation, and international cooperation." };
-  if (rightPct > 60) return { lean: "right", label: "Right", description: "You tend to favor limited government and individual initiative. You likely support free market policies, traditional values, and a strong national defense." };
-  if (leftPct > 40) return { lean: "center-left", label: "Center-Left", description: "You lean progressive on many issues, valuing social justice and government support for those in need, while remaining open to pragmatic solutions." };
-  if (rightPct > 40) return { lean: "center-right", label: "Center-Right", description: "You lean conservative on many issues, favoring market solutions and traditional approaches, while remaining open to reasonable compromises." };
-  return { lean: "center", label: "Center", description: "You take a balanced approach, weighing multiple perspectives. You might agree with different sides on different issues, which is actually quite common." };
+  if (leftPct >= 70) return { 
+    lean: "left", 
+    label: "Progressive", 
+    description: "You tend to believe government and collective action can address social problems. You're likely supportive of regulation, social safety nets, and international cooperation.",
+    color: "blue"
+  };
+  
+  if (rightPct >= 70) return { 
+    lean: "right", 
+    label: "Conservative", 
+    description: "You tend to believe in limited government and individual initiative. You're likely supportive of free markets, traditional values, and national sovereignty.",
+    color: "red"
+  };
+  
+  if (leftPct >= 55) return { 
+    lean: "center-left", 
+    label: "Center-Left", 
+    description: "You lean progressive on many issues, valuing social justice while remaining open to pragmatic solutions.",
+    color: "blue"
+  };
+  
+  if (rightPct >= 55) return { 
+    lean: "center-right", 
+    label: "Center-Right", 
+    description: "You lean conservative on many issues, favoring markets and tradition while remaining open to reasonable compromise.",
+    color: "red"
+  };
+  
+  return { 
+    lean: "center", 
+    label: "Moderate", 
+    description: "You weigh multiple perspectives carefully. You likely agree with different sides on different issues, avoiding ideological extremes.",
+    color: "zinc"
+  };
 }
 
 export default function QuizPage() {
   const [current, setCurrent] = useState(0);
-  const [scores, setScores] = useState<Record<string, number>>({});
+  const [scores, setScores] = useState({ left: 0, center: 0, right: 0 });
   const [selected, setSelected] = useState<string | null>(null);
+  const [showResult, setShowResult] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (cardRef.current) {
-      gsap.fromTo(cardRef.current, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.4 });
+      gsap.fromTo(cardRef.current, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.3 });
     }
   }, [current]);
 
-  const handleAnswer = (option: string) => {
-    setSelected(option);
-    setScores((prev) => ({ ...prev, [option]: (prev[option] || 0) + 1 }));
+  const handleAnswer = (answer: "left" | "center" | "right") => {
+    if (selected) return;
+    
+    setSelected(answer);
+    setScores(prev => ({ ...prev, [answer]: prev[answer] + 1 }));
 
     setTimeout(() => {
       if (current < QUESTIONS.length - 1) {
-        setCurrent((prev) => prev + 1);
+        setCurrent(prev => prev + 1);
         setSelected(null);
+      } else {
+        setShowResult(true);
       }
-    }, 400);
+    }, 600);
   };
 
   const restart = () => {
     setCurrent(0);
-    setScores({});
+    setScores({ left: 0, center: 0, right: 0 });
     setSelected(null);
+    setShowResult(false);
   };
 
   const result = getResult(scores);
+  const question = QUESTIONS[current];
+  const progress = ((current + 1) / QUESTIONS.length) * 100;
 
-  const biasAwareness = result 
-    ? `Your strongest opinions are in ${
-        result.lean === "left" || result.lean === "center-left" ? "left-leaning" :
-        result.lean === "right" || result.lean === "center-right" ? "right-leaning" : "center"
-      } areas. This might mean you're more susceptible to bias on topics that align with your priors — which is exactly why inFormed shows you all sides.`
-    : "";
-
-  if (result) {
-    const leanColors: Record<string, { bg: string; border: string; text: string; bar: string }> = {
-      left: { bg: "bg-blue-500/10", border: "border-blue-500/30", text: "text-blue-400", bar: "bg-blue-500" },
-      "center-left": { bg: "bg-blue-500/10", border: "border-blue-500/30", text: "text-blue-400", bar: "bg-blue-400" },
-      center: { bg: "bg-zinc-500/10", border: "border-zinc-500/30", text: "text-zinc-400", bar: "bg-zinc-500" },
-      "center-right": { bg: "bg-red-500/10", border: "border-red-500/30", text: "text-red-400", bar: "bg-red-400" },
-      right: { bg: "bg-red-500/10", border: "border-red-500/30", text: "text-red-400", bar: "bg-red-500" },
-    };
-    const colors = leanColors[result.lean];
+  if (showResult) {
+    const total = scores.left + scores.center + scores.right;
+    const leftPct = Math.round((scores.left / total) * 100);
+    const centerPct = Math.round((scores.center / total) * 100);
+    const rightPct = Math.round((scores.right / total) * 100);
 
     return (
       <div className="min-h-screen bg-zinc-950">
         <nav className="border-b border-zinc-800 sticky top-0 z-50 bg-zinc-950/80 backdrop-blur-xl">
-          <div className="max-w-5xl mx-auto px-6 py-4">
-            <div className="flex items-center justify-between">
-              <Link href="/" className="flex items-center gap-3">
-                <div className="w-9 h-9 bg-gradient-to-br from-blue-500 via-purple-500 to-red-500 rounded-xl shadow-lg" />
-                <span className="text-lg font-semibold tracking-tight">inFormed</span>
-              </Link>
-            </div>
+          <div className="max-w-2xl mx-auto px-6 py-4">
+            <Link href="/" className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-gradient-to-br from-blue-500 via-purple-500 to-red-500 rounded-xl shadow-lg" />
+              <span className="text-lg font-semibold tracking-tight">inFormed</span>
+            </Link>
           </div>
         </nav>
 
         <main className="max-w-2xl mx-auto px-6 py-12">
-          <div ref={cardRef} className={`${colors.bg} border ${colors.border} rounded-3xl p-10 text-center mb-8`}>
-            <div className={`w-20 h-20 rounded-full bg-zinc-900 border-4 ${result.lean === "left" || result.lean.includes("left") ? "border-blue-500" : result.lean === "right" || result.lean.includes("right") ? "border-red-500" : "border-zinc-500"} flex items-center justify-center mx-auto mb-6`}>
-              <span className="text-4xl font-bold text-white">{result.lean === "left" ? "L" : result.lean === "right" ? "R" : result.lean.includes("left") ? "L+" : result.lean.includes("right") ? "R+" : "C"}</span>
+          <div ref={cardRef} className="text-center mb-10">
+            <div className={`w-24 h-24 rounded-full bg-zinc-900 border-4 ${
+              result.lean === "left" || result.lean === "center-left" ? "border-blue-500" :
+              result.lean === "right" || result.lean === "center-right" ? "border-red-500" : "border-zinc-600"
+            } flex items-center justify-center mx-auto mb-6`}>
+              <span className="text-4xl font-bold text-white">{result.label.charAt(0)}</span>
             </div>
-            <h1 className="text-3xl font-bold text-white mb-3">Your Political Lean: {result.label}</h1>
+            <h1 className="text-3xl font-bold text-white mb-3">You&apos;re {result.label}</h1>
             <p className="text-zinc-400 max-w-lg mx-auto leading-relaxed">{result.description}</p>
           </div>
 
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-8">
-            <h2 className="text-lg font-semibold text-white mb-4">Bias Awareness Check</h2>
-            <p className="text-zinc-400 leading-relaxed">{biasAwareness}</p>
-            <p className="text-zinc-500 text-sm mt-4 p-4 bg-amber-500/10 rounded-xl border border-amber-500/20">
-              <strong className="text-amber-400">Why this matters:</strong> We all have blind spots. Knowing your lean helps you deliberately seek out perspectives you might naturally avoid.
-            </p>
+          <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 mb-8">
+            <h2 className="text-sm font-medium text-zinc-500 mb-4 text-center">Your Political Spectrum</h2>
+            <div className="flex h-16 rounded-xl overflow-hidden">
+              <div className={`flex-1 ${result.lean === "left" || result.lean === "center-left" ? "bg-blue-500" : "bg-zinc-700"} flex flex-col items-center justify-center rounded-l-xl`}>
+                <span className="text-xs font-medium text-white/80">L</span>
+                <span className="text-lg font-bold text-white">{leftPct}%</span>
+              </div>
+              <div className={`w-20 ${result.lean === "center" ? "bg-zinc-500" : "bg-zinc-700"} flex flex-col items-center justify-center`}>
+                <span className="text-xs font-medium text-white/80">C</span>
+                <span className="text-lg font-bold text-white">{centerPct}%</span>
+              </div>
+              <div className={`flex-1 ${result.lean === "right" || result.lean === "center-right" ? "bg-red-500" : "bg-zinc-700"} flex flex-col items-center justify-center rounded-r-xl`}>
+                <span className="text-xs font-medium text-white/80">R</span>
+                <span className="text-lg font-bold text-white">{rightPct}%</span>
+              </div>
+            </div>
           </div>
 
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-8">
-            <h2 className="text-lg font-semibold text-white mb-2">Suggested Topics to Explore</h2>
-            <p className="text-zinc-500 text-sm mb-5">Based on your results, here are perspectives you might not be seeing enough:</p>
-            <div className="grid md:grid-cols-3 gap-4">
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6 mb-8">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-amber-400 text-sm">💡</span>
+              </div>
+              <div>
+                <h3 className="font-medium text-amber-400 mb-1">Why knowing this matters</h3>
+                <p className="text-amber-200/80 text-sm leading-relaxed">
+                  We all have blind spots. Recognizing your lean helps you deliberately seek out perspectives you might naturally avoid. The goal isn&apos;t to change your views—it&apos;s to understand them better.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 mb-8">
+            <h2 className="text-lg font-semibold text-white mb-2">Explore All Sides</h2>
+            <p className="text-zinc-500 text-sm mb-4">Use inFormed to understand issues from multiple perspectives.</p>
+            <div className="grid grid-cols-3 gap-3">
               {[
-                { lean: "left" as const, title: "Universal Healthcare", topic: "healthcare" },
-                { lean: "center" as const, title: "Border Policy", topic: "immigration" },
-                { lean: "right" as const, title: "Tax Reform", topic: "taxes" },
-              ].map((t, i) => (
+                { lean: "left", title: "Progressive View", topic: "progressive-perspective" },
+                { lean: "center", title: "Center View", topic: "moderate-perspective" },
+                { lean: "right", title: "Conservative View", topic: "conservative-perspective" },
+              ].map((t) => (
                 <Link
-                  key={i}
+                  key={t.lean}
                   href={`/topic/${t.topic}`}
-                  className={`p-5 rounded-xl border transition-all hover:-translate-y-1 ${
-                    t.lean === "left" ? "bg-blue-500/10 border-blue-500/30 hover:border-blue-500/50" : t.lean === "right" ? "bg-red-500/10 border-red-500/30 hover:border-red-500/50" : "bg-zinc-800 border-zinc-700 hover:border-zinc-600"
+                  className={`p-4 rounded-xl border text-center transition-all hover:-translate-y-1 ${
+                    t.lean === "left" ? "bg-blue-500/10 border-blue-500/30 hover:border-blue-500/50" :
+                    t.lean === "right" ? "bg-red-500/10 border-red-500/30 hover:border-red-500/50" :
+                    "bg-zinc-800 border-zinc-700 hover:border-zinc-600"
                   }`}
                 >
-                  <span className={`text-xs font-semibold ${
+                  <span className={`text-xs font-medium ${
                     t.lean === "left" ? "text-blue-400" : t.lean === "right" ? "text-red-400" : "text-zinc-400"
-                  }`}>
-                    {t.lean.charAt(0).toUpperCase() + t.lean.slice(1)} Perspective
-                  </span>
-                  <p className="font-semibold text-white mt-2">{t.title}</p>
+                  }`}>{t.title}</span>
                 </Link>
               ))}
             </div>
@@ -259,12 +289,10 @@ export default function QuizPage() {
         </main>
 
         <footer className="border-t border-zinc-800 mt-16">
-          <div className="max-w-5xl mx-auto px-6 py-8">
-            <div className="flex items-center justify-between text-sm text-zinc-500">
-              <div className="flex items-center gap-3">
-                <div className="w-5 h-5 bg-gradient-to-br from-blue-500 via-purple-500 to-red-500 rounded-md shadow-sm" />
-                <span>See every side.</span>
-              </div>
+          <div className="max-w-2xl mx-auto px-6 py-8">
+            <div className="flex items-center gap-3">
+              <div className="w-5 h-5 bg-gradient-to-br from-blue-500 via-purple-500 to-red-500 rounded-md shadow-sm" />
+              <span className="text-zinc-500 text-sm">See every side.</span>
             </div>
           </div>
         </footer>
@@ -272,19 +300,14 @@ export default function QuizPage() {
     );
   }
 
-  const question = QUESTIONS[current];
-  const progress = ((current + 1) / QUESTIONS.length) * 100;
-
   return (
     <div className="min-h-screen bg-zinc-950">
       <nav className="border-b border-zinc-800 sticky top-0 z-50 bg-zinc-950/80 backdrop-blur-xl">
-        <div className="max-w-5xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-gradient-to-br from-blue-500 via-purple-500 to-red-500 rounded-xl shadow-lg" />
-              <span className="text-lg font-semibold tracking-tight">inFormed</span>
-            </Link>
-          </div>
+        <div className="max-w-2xl mx-auto px-6 py-4">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-gradient-to-br from-blue-500 via-purple-500 to-red-500 rounded-xl shadow-lg" />
+            <span className="text-lg font-semibold tracking-tight">inFormed</span>
+          </Link>
         </div>
       </nav>
 
@@ -292,7 +315,7 @@ export default function QuizPage() {
         <div ref={cardRef} className="mb-8">
           <div className="flex justify-between text-sm text-zinc-500 mb-2">
             <span>Question {current + 1} of {QUESTIONS.length}</span>
-            <span>{Math.round(progress)}% complete</span>
+            <span>{Math.round(progress)}%</span>
           </div>
           <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
             <div
@@ -302,8 +325,8 @@ export default function QuizPage() {
           </div>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8">
-          <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 mb-8">
+          <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
             {question.category}
           </span>
           <h2 className="text-xl font-semibold text-white mt-2 mb-8 leading-snug">
@@ -313,10 +336,10 @@ export default function QuizPage() {
           <div className="space-y-3">
             {(["left", "center", "right"] as const).map((option) => {
               const isSelected = selected === option;
-              const colors = {
-                left: "border-blue-500/30 hover:border-blue-500/60 hover:bg-blue-500/10",
-                center: "border-zinc-600 hover:border-zinc-500 hover:bg-zinc-800",
-                right: "border-red-500/30 hover:border-red-500/60 hover:bg-red-500/10",
+              const bgColors = {
+                left: "hover:bg-blue-500/10 hover:border-blue-500/40",
+                center: "hover:bg-zinc-800 hover:border-zinc-600",
+                right: "hover:bg-red-500/10 hover:border-red-500/40",
               };
               const labelColors = {
                 left: "text-blue-400 bg-blue-500/20",
@@ -328,46 +351,45 @@ export default function QuizPage() {
                 <button
                   key={option}
                   onClick={() => handleAnswer(option)}
+                  disabled={selected !== null}
                   className={`w-full text-left p-5 rounded-xl border-2 transition-all duration-300 ${
-                    isSelected ? colors[option] : "border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/50"
-                  }`}
+                    isSelected 
+                      ? option === "left" ? "bg-blue-500/20 border-blue-500" 
+                        : option === "right" ? "bg-red-500/20 border-red-500"
+                        : "bg-zinc-800 border-zinc-500"
+                      : `border-zinc-800 ${bgColors[option]}`
+                  } ${selected && !isSelected ? "opacity-50" : ""}`}
                 >
-                  <div className="flex items-start gap-4">
+                  <div className="flex items-center gap-3">
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${labelColors[option]}`}>
-                      {option.charAt(0).toUpperCase() + option.slice(1)}
+                      {option === "left" ? "Left" : option === "center" ? "Center" : "Right"}
                     </span>
-                    <span className="text-zinc-300 leading-relaxed">{question.options[option]}</span>
+                    <span className="text-zinc-300 leading-relaxed flex-1">{question[option]}</span>
                   </div>
                 </button>
               );
             })}
           </div>
-
-          <p className="text-xs text-zinc-600 mt-8 text-center">
-            We don&apos;t store your answers. This quiz is for self-reflection, not data collection.
-          </p>
         </div>
 
-        <div className="mt-8 flex justify-center gap-8 text-sm text-zinc-500">
+        <div className="flex justify-center gap-6 text-xs text-zinc-600">
           <span className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-blue-500" /> Left
+            <span className="w-2 h-2 rounded-full bg-blue-500" /> Left
           </span>
           <span className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-zinc-500" /> Center
+            <span className="w-2 h-2 rounded-full bg-zinc-500" /> Center
           </span>
           <span className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-red-500" /> Right
+            <span className="w-2 h-2 rounded-full bg-red-500" /> Right
           </span>
         </div>
       </main>
 
       <footer className="border-t border-zinc-800 mt-16">
-        <div className="max-w-5xl mx-auto px-6 py-8">
-          <div className="flex items-center justify-between text-sm text-zinc-500">
-            <div className="flex items-center gap-3">
-              <div className="w-5 h-5 bg-gradient-to-br from-blue-500 via-purple-500 to-red-500 rounded-md shadow-sm" />
-              <span>See every side.</span>
-            </div>
+        <div className="max-w-2xl mx-auto px-6 py-8">
+          <div className="flex items-center gap-3">
+            <div className="w-5 h-5 bg-gradient-to-br from-blue-500 via-purple-500 to-red-500 rounded-md shadow-sm" />
+            <span className="text-zinc-500 text-sm">See every side.</span>
           </div>
         </div>
       </footer>
