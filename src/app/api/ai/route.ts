@@ -129,7 +129,6 @@ User: ${message}`;
 
     return NextResponse.json({ error: "Invalid type" }, { status: 400 });
   } catch (error) {
-    console.error("[AI] Error:", error);
     return NextResponse.json({ error: "AI request failed" }, { status: 500 });
   }
 }
