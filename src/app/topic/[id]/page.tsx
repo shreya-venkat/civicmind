@@ -329,12 +329,16 @@ export default function TopicPage() {
     fetch("/api/trending")
       .then((res) => res.json())
       .then((data) => {
-        if (data.topics) {
+        if (data.topics && data.topics.length > 0) {
           const found = data.topics.find((t: TrendingTopic) => t.id === params.id);
-          setTopic(found || null);
+          if (found) {
+            setTopic(found);
+          }
         }
       })
-      .catch(() => {})
+      .catch((err) => {
+        console.error("Failed to load topic:", err);
+      })
       .finally(() => setLoading(false));
   }, [params.id]);
 
