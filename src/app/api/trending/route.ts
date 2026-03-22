@@ -542,6 +542,7 @@ export async function GET() {
     }
 
     if (topics.length === 0) {
+      console.log("[Trending API] No topics built, returning sample topics");
       const sampleTopics = getSampleTopics();
       console.log(`[NewsAPI] No topics from API, using ${sampleTopics.length} sample topics`);
       return NextResponse.json({ topics: sampleTopics, updatedAt: new Date().toISOString() });
@@ -553,6 +554,7 @@ export async function GET() {
     if (cache && cache.topics.length > 0) {
       return NextResponse.json(cache);
     }
+    console.log("[Trending API] Returning sample topics");
     return NextResponse.json({ topics: getSampleTopics(), updatedAt: new Date().toISOString() });
   }
 }
