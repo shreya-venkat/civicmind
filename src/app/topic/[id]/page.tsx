@@ -69,7 +69,7 @@ function CoverageSidebar({ topic }: { topic: TrendingTopic }) {
   const rightPct = Math.round((topic.rightCount / topic.articleCount) * 100);
 
   return (
-    <aside className="w-72 border-l border-zinc-800 bg-zinc-950">
+    <aside className="w-72 border-l border-zinc-800 bg-zinc-950 hidden lg:block">
       <div className="p-5 space-y-6">
         <div>
           <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-4">Coverage</h3>
@@ -130,64 +130,91 @@ function CoverageSidebar({ topic }: { topic: TrendingTopic }) {
   );
 }
 
-function QuickTakeCard({ 
+function LeanSection({ 
   lean, 
-  perspective, 
-  articleCount, 
-  isActive, 
-  onClick 
+  summary, 
+  notes, 
+  articles,
+  onClose 
 }: { 
   lean: Lean; 
-  perspective: string;
-  articleCount: number;
-  isActive: boolean;
-  onClick: () => void;
+  summary: string;
+  notes: string[];
+  articles: TrendingArticle[];
+  onClose: () => void;
 }) {
   const colors = {
-    left: {
-      bg: "bg-blue-500/10 hover:bg-blue-500/20",
-      border: "border-blue-500/30",
-      active: "border-blue-500 ring-2 ring-blue-500/30",
-      header: "bg-blue-500/20",
-      text: "text-blue-400",
-      label: "Progressive"
-    },
-    center: {
-      bg: "bg-zinc-800/50 hover:bg-zinc-800",
-      border: "border-zinc-700",
-      active: "border-zinc-500 ring-2 ring-zinc-500/30",
-      header: "bg-zinc-700/50",
-      text: "text-zinc-400",
-      label: "Moderate"
-    },
-    right: {
-      bg: "bg-red-500/10 hover:bg-red-500/20",
-      border: "border-red-500/30",
-      active: "border-red-500 ring-2 ring-red-500/30",
-      header: "bg-red-500/20",
-      text: "text-red-400",
-      label: "Conservative"
-    }
+    left: { bg: "bg-blue-500/5", border: "border-blue-500/30", header: "bg-blue-500/10", text: "text-blue-400", dot: "bg-blue-500", label: "Progressive" },
+    center: { bg: "bg-zinc-800/30", border: "border-zinc-700", header: "bg-zinc-700/50", text: "text-zinc-400", dot: "bg-zinc-500", label: "Moderate" },
+    right: { bg: "bg-red-500/5", border: "border-red-500/30", header: "bg-red-500/10", text: "text-red-400", dot: "bg-red-500", label: "Conservative" },
   };
-
   const c = colors[lean];
 
   return (
-    <button
-      onClick={onClick}
-      className={`text-left p-5 rounded-xl border ${c.border} ${c.bg} transition-all w-full ${isActive ? c.active : ''}`}
-    >
-      <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full ${c.header} mb-3`}>
-        <span className={`w-2 h-2 rounded-full ${
-          lean === 'left' ? 'bg-blue-500' : 
-          lean === 'right' ? 'bg-red-500' : 'bg-zinc-500'
-        }`} />
-        <span className={`text-xs font-medium ${c.text}`}>{c.label}</span>
-        <span className="text-zinc-600 text-xs">·</span>
-        <span className="text-zinc-500 text-xs">{articleCount} sources</span>
+    <div className={`border-b border-zinc-800 ${c.bg}`}>
+      <div className="max-w-4xl mx-auto px-6 py-8">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <span className={`w-3 h-3 rounded-full ${c.dot}`} />
+            <h2 className={`text-xl font-semibold ${c.text}`}>{c.label} View</h2>
+            <span className="text-zinc-600">·</span>
+            <span className="text-zinc-500 text-sm">{articles.length} sources</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-zinc-500 hover:text-white transition-colors"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-6">
+            {/* Summary */}
+            <div>
+              <h3 className="text-sm font-medium text-zinc-400 mb-2">Summary</h3>
+              <p className="text-zinc-200 leading-relaxed">{summary}</p>
+            </div>
+
+            {/* Notes */}
+            {notes.length > 0 && (
+              <div>
+                <h3 className="text-sm font-medium text-zinc-400 mb-3">Key Points</h3>
+                <ul className="space-y-2">
+                  {notes.map((note, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <span className={`w-1.5 h-1.5 rounded-full ${c.dot} mt-2 flex-shrink-0`} />
+                      <span className="text-zinc-300 text-sm leading-relaxed">{note}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          {/* Sources */}
+          <div>
+            <h3 className="text-sm font-medium text-zinc-400 mb-3">Sources</h3>
+            <div className="space-y-2">
+              {articles.slice(0, 5).map((article, i) => (
+                <a
+                  key={i}
+                  href={article.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block p-3 bg-zinc-900/50 border border-zinc-800 hover:border-zinc-700 transition-colors"
+                >
+                  <p className="text-sm text-zinc-200 leading-snug line-clamp-2 mb-1">{article.title}</p>
+                  <p className="text-xs text-zinc-500">{article.source}</p>
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
-      <p className="text-sm text-zinc-300 leading-relaxed line-clamp-4">{perspective}</p>
-    </button>
+    </div>
   );
 }
 
@@ -316,7 +343,42 @@ export default function TopicPage() {
     right: topic.articles.filter((a) => a.lean === "right"),
   };
 
-  const currentArticles = selectedLean ? articlesByLean[selectedLean] : topic.articles;
+  const selectedSummary = selectedLean && aiPerspectives ? aiPerspectives[selectedLean] : "";
+
+  const generateNotes = (articles: TrendingArticle[]): string[] => {
+    const notes: string[] = [];
+    const titles = articles.slice(0, 5).map(a => a.title);
+    
+    if (titles.length > 0) {
+      notes.push(`Covered by ${articles.length} ${selectedLean === 'left' ? 'progressive' : selectedLean === 'right' ? 'conservative' : 'centrist'} sources`);
+    }
+    
+    const recentCount = articles.filter(a => {
+      const date = new Date(a.date);
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      return date > weekAgo;
+    }).length;
+    
+    if (recentCount > 0) {
+      notes.push(`${recentCount} articles published this week`);
+    }
+
+    const commonWords = ['immigration', 'border', 'economy', 'healthcare', 'climate', 'taxes', 'trade', 'china', 'russia', 'iran', 'ukraine', 'israel'];
+    titles.forEach(title => {
+      const lower = title.toLowerCase();
+      commonWords.forEach(word => {
+        if (lower.includes(word) && notes.length < 4) {
+          const note = `Recent focus on ${word}`;
+          if (!notes.includes(note)) {
+            notes.push(note);
+          }
+        }
+      });
+    });
+
+    return notes.slice(0, 4);
+  };
 
   return (
     <div className="min-h-screen bg-zinc-950">
@@ -365,7 +427,7 @@ export default function TopicPage() {
             </div>
           </div>
 
-          {/* Quick Take Section */}
+          {/* Quick Take Section - Always visible */}
           <div className="border-b border-zinc-800">
             <div className="max-w-4xl mx-auto px-6 py-8">
               <div className="flex items-center gap-2 mb-6">
@@ -381,27 +443,53 @@ export default function TopicPage() {
                 </div>
               ) : aiPerspectives ? (
                 <div className="grid md:grid-cols-3 gap-4">
-                  <QuickTakeCard
-                    lean="left"
-                    perspective={aiPerspectives.left}
-                    articleCount={articlesByLean.left.length}
-                    isActive={selectedLean === 'left'}
+                  <button
                     onClick={() => setSelectedLean(selectedLean === 'left' ? null : 'left')}
-                  />
-                  <QuickTakeCard
-                    lean="center"
-                    perspective={aiPerspectives.center}
-                    articleCount={articlesByLean.center.length}
-                    isActive={selectedLean === 'center'}
+                    className={`text-left p-5 rounded-xl border transition-all ${
+                      selectedLean === 'left' 
+                        ? 'bg-blue-500/10 border-blue-500 ring-2 ring-blue-500/30' 
+                        : 'bg-zinc-900/50 border-zinc-800 hover:border-blue-500/30 hover:bg-blue-500/5'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                      <span className="text-sm font-medium text-blue-400">Progressive</span>
+                      <span className="text-zinc-600 text-xs">({articlesByLean.left.length})</span>
+                    </div>
+                    <p className="text-sm text-zinc-300 leading-relaxed line-clamp-4">{aiPerspectives.left}</p>
+                  </button>
+
+                  <button
                     onClick={() => setSelectedLean(selectedLean === 'center' ? null : 'center')}
-                  />
-                  <QuickTakeCard
-                    lean="right"
-                    perspective={aiPerspectives.right}
-                    articleCount={articlesByLean.right.length}
-                    isActive={selectedLean === 'right'}
+                    className={`text-left p-5 rounded-xl border transition-all ${
+                      selectedLean === 'center' 
+                        ? 'bg-zinc-800 border-zinc-500 ring-2 ring-zinc-500/30' 
+                        : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-600 hover:bg-zinc-800/30'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="w-2.5 h-2.5 rounded-full bg-zinc-500" />
+                      <span className="text-sm font-medium text-zinc-400">Moderate</span>
+                      <span className="text-zinc-600 text-xs">({articlesByLean.center.length})</span>
+                    </div>
+                    <p className="text-sm text-zinc-300 leading-relaxed line-clamp-4">{aiPerspectives.center}</p>
+                  </button>
+
+                  <button
                     onClick={() => setSelectedLean(selectedLean === 'right' ? null : 'right')}
-                  />
+                    className={`text-left p-5 rounded-xl border transition-all ${
+                      selectedLean === 'right' 
+                        ? 'bg-red-500/10 border-red-500 ring-2 ring-red-500/30' 
+                        : 'bg-zinc-900/50 border-zinc-800 hover:border-red-500/30 hover:bg-red-500/5'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                      <span className="text-sm font-medium text-red-400">Conservative</span>
+                      <span className="text-zinc-600 text-xs">({articlesByLean.right.length})</span>
+                    </div>
+                    <p className="text-sm text-zinc-300 leading-relaxed line-clamp-4">{aiPerspectives.right}</p>
+                  </button>
                 </div>
               ) : (
                 <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 text-center">
@@ -409,33 +497,67 @@ export default function TopicPage() {
                 </div>
               )}
 
-              {selectedLean && (
-                <button
-                  onClick={() => setSelectedLean(null)}
-                  className="mt-4 text-xs text-indigo-400 hover:text-indigo-300"
-                >
-                  Show all sources (click again to reset filter)
-                </button>
-              )}
+              <p className="mt-4 text-xs text-zinc-500">
+                Click a card to see full summary, key points, and sources
+              </p>
             </div>
           </div>
 
-          {/* Articles */}
-          <div className="max-w-4xl mx-auto px-6 py-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-medium text-zinc-400">
-                {selectedLean ? `${selectedLean.charAt(0).toUpperCase() + selectedLean.slice(1)}-lean sources` : 'All sources'}
-              </h3>
-              <span className="text-xs text-zinc-600">{currentArticles.length} articles</span>
+          {/* Expanded Lean Section */}
+          {selectedLean && selectedSummary && (
+            <LeanSection
+              lean={selectedLean}
+              summary={selectedSummary}
+              notes={generateNotes(articlesByLean[selectedLean])}
+              articles={articlesByLean[selectedLean]}
+              onClose={() => setSelectedLean(null)}
+            />
+          )}
+
+          {/* All Articles Section */}
+          <div className="max-w-4xl mx-auto px-6 py-8">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-white">All Sources</h3>
+              <span className="text-sm text-zinc-500">{topic.articles.length} articles</span>
             </div>
+
+            {/* Lean tabs */}
+            <div className="flex items-center gap-2 mb-6">
+              {(["left", "center", "right"] as const).map((lean) => {
+                const colors = {
+                  left: { dot: "bg-blue-500", text: "text-blue-400", count: articlesByLean[lean].length },
+                  center: { dot: "bg-zinc-500", text: "text-zinc-400", count: articlesByLean[lean].length },
+                  right: { dot: "bg-red-500", text: "text-red-400", count: articlesByLean[lean].length },
+                };
+                const c = colors[lean];
+                const isSelected = selectedLean === lean;
+
+                return (
+                  <button
+                    key={lean}
+                    onClick={() => setSelectedLean(isSelected ? null : lean)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${
+                      isSelected
+                        ? `${c.text} bg-zinc-800 border-zinc-700`
+                        : 'text-zinc-500 border-zinc-800 hover:border-zinc-700 hover:text-zinc-300'
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${c.dot}`} />
+                    <span className="text-sm font-medium capitalize">{lean}</span>
+                    <span className="text-xs opacity-60">{c.count}</span>
+                  </button>
+                );
+              })}
+            </div>
+
             <div className="space-y-3">
-              {currentArticles.map((article, i) => (
+              {(selectedLean ? articlesByLean[selectedLean] : topic.articles).map((article, i) => (
                 <a
                   key={i}
                   href={article.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group flex gap-4 p-4 border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/30 transition-colors rounded-xl"
+                  className="group flex gap-4 p-4 bg-zinc-900/30 border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/50 transition-colors rounded-xl"
                 >
                   {article.image && (
                     <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-lg">
@@ -468,11 +590,6 @@ export default function TopicPage() {
                   </div>
                 </a>
               ))}
-              {currentArticles.length === 0 && (
-                <div className="text-center py-12 text-zinc-500">
-                  No articles from this perspective
-                </div>
-              )}
             </div>
           </div>
         </main>
