@@ -152,12 +152,7 @@ export default function Home() {
         <div className="max-w-5xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <a href="/" className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-indigo-600 flex items-center justify-center">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"/>
-                  <path d="M12 16v-4M12 8h.01"/>
-                </svg>
-              </div>
+              <div className="w-9 h-9 bg-gradient-to-br from-blue-500 via-purple-500 to-red-500 rounded-xl shadow-lg" />
               <span className="text-lg font-semibold tracking-tight">inFormed</span>
             </a>
             
@@ -307,11 +302,7 @@ export default function Home() {
         <div className="max-w-5xl mx-auto px-6 py-8">
           <div className="flex items-center justify-between text-sm text-zinc-500">
             <div className="flex items-center gap-3">
-              <div className="w-5 h-5 bg-indigo-600 flex items-center justify-center">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"/>
-                  <path d="M12 16v-4M12 8h.01"/>
-                </svg>
+              <div className="w-5 h-5 bg-gradient-to-br from-blue-500 via-purple-500 to-red-500 rounded-md shadow-sm" />
               </div>
               <span>See every side.</span>
             </div>
