@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 interface TrendingArticle {
   title: string;
@@ -34,6 +34,13 @@ interface ChatMessage {
   content: string;
 }
 
+interface AIDeepDive {
+  summary: string;
+  takeaways: string[];
+  facts: string[];
+  narrative: string;
+}
+
 type Lean = "left" | "center" | "right";
 
 function BiasBar({ topic }: { topic: TrendingTopic }) {
@@ -57,69 +64,6 @@ function BiasBar({ topic }: { topic: TrendingTopic }) {
   );
 }
 
-function extractThemes(articles: TrendingArticle[]): string[] {
-  const themes: string[] = [];
-  const titleText = articles.map(a => a.title.toLowerCase()).join(' ');
-  
-  const themeKeywords: [string, string[]][] = [
-    ['Executive power', ['trump administration', 'executive', 'white house', 'president']],
-    ['Border security', ['border', 'immigration', 'deportation', 'asylum']],
-    ['Economic policy', ['economy', 'tariffs', 'jobs', 'inflation', 'tax']],
-    ['Foreign relations', ['china', 'russia', 'ukraine', 'nato', 'iran', 'israel', 'trade']],
-    ['Civil rights', ['rights', 'abortion', 'lgbtq', 'voting', 'civil liberties']],
-    ['Healthcare', ['healthcare', 'medicare', 'medicaid', 'insurance']],
-    ['Climate', ['climate', 'energy', 'environment', 'oil', 'green']],
-    ['Social programs', ['social security', 'welfare', 'medicaid', 'housing']],
-    ['Defense', ['military', 'defense', 'pentagon', 'veterans']],
-    ['Education', ['education', 'school', 'student', 'college', 'university']],
-  ];
-  
-  themeKeywords.forEach(([theme, keywords]) => {
-    if (keywords.some(kw => titleText.includes(kw))) {
-      themes.push(theme);
-    }
-  });
-  
-  return themes.slice(0, 4);
-}
-
-function generateSummary(articles: TrendingArticle[], lean: Lean): string {
-  if (articles.length === 0) return 'No coverage from this perspective.';
-  
-  const labels = {
-    left: 'progressive',
-    center: 'moderate',
-    right: 'conservative'
-  };
-  
-  const count = articles.length;
-  const sources = new Set(articles.map(a => a.source)).size;
-  
-  const recentCount = articles.filter(a => {
-    const date = new Date(a.date);
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    return date > weekAgo;
-  }).length;
-  
-  const themes = extractThemes(articles);
-  
-  let intro = '';
-  if (lean === 'left') {
-    intro = `${labels[lean].charAt(0).toUpperCase() + labels[lean].slice(1)} analysts and outlets are highlighting `;
-  } else if (lean === 'right') {
-    intro = `${labels[lean].charAt(0).toUpperCase() + labels[lean].slice(1)} voices are emphasizing `;
-  } else {
-    intro = `Centrist observers are examining `;
-  }
-  
-  const themeStr = themes.length > 0 
-    ? `focusing on ${themes.slice(0, 2).join(' and ').toLowerCase()}` 
-    : 'covering recent developments';
-  
-  return `${intro}${themeStr}. ${count} articles from ${sources} sources, with ${recentCount} published this week.`;
-}
-
 export default function TopicPage() {
   const params = useParams();
   const [topic, setTopic] = useState<TrendingTopic | null>(null);
@@ -128,6 +72,8 @@ export default function TopicPage() {
   const [chatOpen, setChatOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const [aiAnalysis, setAiAnalysis] = useState<AIDeepDive | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -142,6 +88,54 @@ export default function TopicPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [params.id]);
+
+  const fetchAnalysis = useCallback(async (lean: Lean, articles: TrendingArticle[]) => {
+    if (articles.length === 0) {
+      setAiAnalysis(null);
+      return;
+    }
+
+    setAiLoading(true);
+    setAiAnalysis(null);
+
+    try {
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "deepdive",
+          topicTitle: topic?.title || "",
+          articles: articles.slice(0, 10).map((a) => ({
+            title: a.title,
+            description: a.description,
+            source: a.source,
+            lean: a.lean,
+            date: a.date,
+          })),
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.summary || data.takeaways || data.facts) {
+          setAiAnalysis(data);
+        }
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setAiLoading(false);
+    }
+  }, [topic?.title]);
+
+  useEffect(() => {
+    if (selectedLean && topic) {
+      const articles = topic.articles.filter((a) => a.lean === selectedLean);
+      fetchAnalysis(selectedLean, articles);
+    } else {
+      setAiAnalysis(null);
+    }
+  }, [selectedLean, topic, fetchAnalysis]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -216,13 +210,11 @@ export default function TopicPage() {
   };
 
   const selectedArticles = selectedLean ? articlesByLean[selectedLean] : [];
-  const selectedThemes = selectedLean ? extractThemes(articlesByLean[selectedLean]) : [];
-  const selectedSummary = selectedLean ? generateSummary(articlesByLean[selectedLean], selectedLean) : '';
 
   const leanConfig = {
-    left: { label: 'Progressive', dot: 'bg-blue-500', text: 'text-blue-400', border: 'border-blue-500/30', bg: 'bg-blue-500/5' },
-    center: { label: 'Moderate', dot: 'bg-zinc-500', text: 'text-zinc-400', border: 'border-zinc-600', bg: 'bg-zinc-800/20' },
-    right: { label: 'Conservative', dot: 'bg-red-500', text: 'text-red-400', border: 'border-red-500/30', bg: 'bg-red-500/5' },
+    left: { label: 'Progressive', dot: 'bg-blue-500', text: 'text-blue-400', border: 'border-blue-500/30', bg: 'bg-blue-500/5', accent: '#3b82f6' },
+    center: { label: 'Moderate', dot: 'bg-zinc-500', text: 'text-zinc-400', border: 'border-zinc-600', bg: 'bg-zinc-800/20', accent: '#71717a' },
+    right: { label: 'Conservative', dot: 'bg-red-500', text: 'text-red-400', border: 'border-red-500/30', bg: 'bg-red-500/5', accent: '#ef4444' },
   };
 
   return (
@@ -284,7 +276,7 @@ export default function TopicPage() {
                   onClick={() => setSelectedLean(isSelected ? null : lean)}
                   className={`flex items-center gap-2 px-5 py-2.5 rounded-xl border transition-all ${
                     isSelected
-                      ? `${config.border} ${config.bg} ${config.dot.replace('bg-', 'ring-2 ring-')}`
+                      ? `${config.border} ${config.bg} ring-2 ring-opacity-50`
                       : 'border-zinc-800 bg-zinc-900/50 hover:border-zinc-700'
                   }`}
                 >
@@ -303,7 +295,7 @@ export default function TopicPage() {
       {/* Content area */}
       {selectedLean ? (
         <div className="max-w-4xl mx-auto px-6 py-8">
-          {/* Quick Take */}
+          {/* AI Analysis Card */}
           <div className={`border border-zinc-800 rounded-2xl p-8 mb-8 ${leanConfig[selectedLean].bg}`}>
             <div className="flex items-center gap-3 mb-6">
               <span className={`w-3 h-3 rounded-full ${leanConfig[selectedLean].dot}`} />
@@ -312,43 +304,65 @@ export default function TopicPage() {
               </h2>
             </div>
 
-            <div className="mb-6">
-              <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">Summary</h3>
-              <p className="text-zinc-200 leading-relaxed">{selectedSummary}</p>
-            </div>
+            {aiLoading ? (
+              <div className="flex items-center gap-3 py-8">
+                <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm text-zinc-500">Analyzing articles...</span>
+              </div>
+            ) : aiAnalysis ? (
+              <div className="space-y-8">
+                {/* Narrative */}
+                {aiAnalysis.narrative && (
+                  <div>
+                    <p className="text-zinc-200 leading-relaxed text-lg italic">
+                      &ldquo;{aiAnalysis.narrative}&rdquo;
+                    </p>
+                  </div>
+                )}
 
-            {selectedThemes.length > 0 && (
-              <div>
-                <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">Key Themes</h3>
-                <div className="flex flex-wrap gap-2">
-                  {selectedThemes.map((theme, i) => (
-                    <span
-                      key={i}
-                      className={`px-3 py-1.5 rounded-full text-sm border ${leanConfig[selectedLean].border} ${leanConfig[selectedLean].text.replace('text-', 'text-opacity-80 bg-opacity-10 bg-')}`}
-                      style={{ backgroundColor: selectedLean === 'left' ? 'rgba(59, 130, 246, 0.1)' : selectedLean === 'right' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(161, 161, 170, 0.1)' }}
-                    >
-                      {theme}
-                    </span>
-                  ))}
+                {/* Summary */}
+                {aiAnalysis.summary && (
+                  <div>
+                    <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">Overview</h3>
+                    <p className="text-zinc-200 leading-relaxed">{aiAnalysis.summary}</p>
+                  </div>
+                )}
+
+                <div className="grid md:grid-cols-2 gap-8">
+                  {/* Key Takeaways */}
+                  {aiAnalysis.takeaways && aiAnalysis.takeaways.length > 0 && (
+                    <div>
+                      <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">Key Takeaways</h3>
+                      <ul className="space-y-3">
+                        {aiAnalysis.takeaways.map((takeaway, i) => (
+                          <li key={i} className="flex items-start gap-3">
+                            <span className={`w-1.5 h-1.5 rounded-full mt-2 flex-shrink-0 ${leanConfig[selectedLean].dot}`} />
+                            <span className="text-zinc-300 text-sm leading-relaxed">{takeaway}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Facts */}
+                  {aiAnalysis.facts && aiAnalysis.facts.length > 0 && (
+                    <div>
+                      <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">Key Facts</h3>
+                      <ul className="space-y-3">
+                        {aiAnalysis.facts.map((fact, i) => (
+                          <li key={i} className="flex items-start gap-3">
+                            <span className="text-zinc-500 mt-0.5">•</span>
+                            <span className="text-zinc-300 text-sm leading-relaxed">{fact}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
-
-            {/* Featured headline */}
-            {selectedArticles.length > 0 && (
-              <div className="mt-6 pt-6 border-t border-zinc-800">
-                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-2">Featured</p>
-                <a
-                  href={selectedArticles[0].url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block group"
-                >
-                  <h4 className="text-lg font-medium text-zinc-200 group-hover:text-white transition-colors leading-snug mb-1">
-                    {selectedArticles[0].title}
-                  </h4>
-                  <p className="text-sm text-zinc-500">{selectedArticles[0].source}</p>
-                </a>
+            ) : (
+              <div className="text-center py-8 text-zinc-500">
+                <p>Limited AI analysis available</p>
               </div>
             )}
           </div>

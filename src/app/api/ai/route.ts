@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
 interface RequestBody {
-  type: "summarize" | "perspectives" | "chat";
+  type: "summarize" | "perspectives" | "chat" | "deepdive";
   topic?: string;
   topicTitle?: string;
   articles?: Array<{
@@ -11,23 +11,25 @@ interface RequestBody {
     description: string | null;
     source: string;
     lean: "left" | "center" | "right";
+    date?: string;
   }>;
   message?: string;
   chatHistory?: Array<{ role: string; content: string }>;
 }
 
-const PERSPECTIVES_PROMPT = `You are a neutral political analyst. Based on the articles provided, summarize what each perspective is saying about this topic.
+const DEEPDIVE_PROMPT = `You are a political analyst summarizing news coverage. Based on the articles provided, give a comprehensive analysis of what this perspective is saying.
 
-Return your response as a JSON object with exactly these keys: "left", "center", "right"
+Return your response as a JSON object with these keys:
+- "summary": A 2-3 sentence overview of what this side is focused on
+- "takeaways": Array of 3-4 key takeaways (each 1 sentence)
+- "facts": Array of 3-4 specific facts or data points mentioned in the articles (each 1 sentence)
+- "narrative": The overall narrative/frame this side is using (1 sentence)
 
 Rules:
-- Left: Explain the progressive/liberal argument, citing specific policy concerns and values (2-3 sentences max)
-- Center: Present evidence-based analysis that acknowledges complexity and tradeoffs (2-3 sentences max)  
-- Right: Explain the conservative/libertarian argument with its underlying values and logic (2-3 sentences max)
-- Do NOT judge which side is correct
-- Use neutral language, avoid "alarming", "shameful", "radical", "extreme"
-- If insufficient info, say "Insufficient coverage to determine perspective"
-- Output ONLY valid JSON, no markdown, no explanation`;
+- Focus only on this lean's perspective
+- Be specific, cite actual claims from the articles
+- If articles lack detail, say "Limited coverage"
+- Output ONLY valid JSON, no markdown`;
 
 const CHAT_PROMPT = `You are a Socratic debate partner helping users identify blind spots in their thinking.
 
@@ -53,7 +55,7 @@ async function callGroq(prompt: string): Promise<string> {
         model: "llama-3.1-8b-instant",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.3,
-        max_tokens: 500
+        max_tokens: 800
       }),
     }
   );
@@ -79,7 +81,7 @@ export async function POST(request: Request) {
     const body: RequestBody = await request.json();
     const { type, topicTitle, articles, message, chatHistory } = body;
 
-    if (type === "perspectives") {
+    if (type === "deepdive") {
       if (!articles || articles.length === 0) {
         return NextResponse.json({ error: "No articles provided" }, { status: 400 });
       }
@@ -88,7 +90,7 @@ export async function POST(request: Request) {
         .map((a) => `[${a.lean.toUpperCase()}] ${a.source}: ${a.title}${a.description ? `. ${a.description}` : ""}`)
         .join("\n\n");
 
-      const prompt = `${PERSPECTIVES_PROMPT}
+      const prompt = `${DEEPDIVE_PROMPT}
 
 Topic: ${topicTitle}
 
@@ -103,9 +105,10 @@ ${articleContext}`;
         return NextResponse.json(parsed);
       } catch {
         return NextResponse.json({ 
-          left: "Could not generate left perspective", 
-          center: "Could not generate center perspective", 
-          right: "Could not generate right perspective" 
+          summary: "Could not generate analysis",
+          takeaways: [],
+          facts: [],
+          narrative: ""
         });
       }
     }
