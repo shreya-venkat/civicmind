@@ -45,15 +45,15 @@ const TRENDING_QUESTIONS = [
 
 function BiasBarMini({ topic }: { topic: TrendingTopic }) {
   const total = topic.leftCount + topic.centerCount + topic.rightCount;
-  const leftPct = total > 0 ? (topic.leftCount / total) * 100 : 33;
-  const centerPct = total > 0 ? (topic.centerCount / total) * 100 : 34;
-  const rightPct = total > 0 ? (topic.rightCount / total) * 100 : 33;
+  const leftPct = total > 0 ? Math.round((topic.leftCount / total) * 100) : 33;
+  const centerPct = total > 0 ? Math.round((topic.centerCount / total) * 100) : 34;
+  const rightPct = total > 0 ? Math.round((topic.rightCount / total) * 100) : 33;
   
   return (
     <div className="flex h-1.5 rounded-full overflow-hidden bg-zinc-800">
-      {leftPct > 0 && <div className="bg-blue-500" style={{ width: `${leftPct}%` }} />}
-      {centerPct > 0 && <div className="bg-zinc-500" style={{ width: `${centerPct}%` }} />}
-      {rightPct > 0 && <div className="bg-red-500" style={{ width: `${rightPct}%` }} />}
+      <div className="bg-blue-500" style={{ width: `${leftPct}%` }} />
+      <div className="bg-zinc-500" style={{ width: `${centerPct}%` }} />
+      <div className="bg-red-500" style={{ width: `${rightPct}%` }} />
     </div>
   );
 }
@@ -143,7 +143,7 @@ function TopicCard({ topic }: { topic: TrendingTopic }) {
                 ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' 
                 : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
             }`}>
-              {topic.scope === 'national' ? '🇺🇸 National' : '🌍 Global'}
+              {topic.scope === 'national' ? 'National' : 'Global'}
             </span>
           </div>
           
@@ -152,17 +152,10 @@ function TopicCard({ topic }: { topic: TrendingTopic }) {
             {topic.title}
           </h3>
           
-          {/* Preview articles (spotlight content) */}
-          <div className={`space-y-1.5 mb-4 transition-all duration-500 ${isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'}`}>
-            {previewArticles.map((article, i) => (
-              <p key={i} className="text-xs text-zinc-500 truncate flex items-center gap-1.5">
-                <span className={`w-1 h-1 rounded-full flex-shrink-0 ${
-                  article.lean === 'left' ? 'bg-blue-500' : article.lean === 'center' ? 'bg-zinc-500' : 'bg-red-500'
-                }`} />
-                {article.title}
-              </p>
-            ))}
-          </div>
+          {/* Cohesive summary on hover */}
+          <p className={`text-xs text-zinc-400 mb-4 line-clamp-2 transition-all duration-500 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
+            {featuredArticle?.description || topic.description || previewArticles[0]?.title}
+          </p>
           
           {/* Footer */}
           <div className="flex items-center justify-between">
@@ -337,8 +330,8 @@ export default function Home() {
                         onClick={() => setShowDropdown(false)}
                         className="group flex items-center gap-4 py-2.5 px-3 hover:bg-zinc-800/50 rounded-xl transition-colors"
                       >
-                        <span className="text-sm text-zinc-600 w-5">{i + 1}</span>
-                        <span className="flex-1 text-sm text-zinc-300 group-hover:text-white">{q.question}</span>
+                        <span className="text-sm text-zinc-600 w-5 text-left">{i + 1}</span>
+                        <span className="flex-1 text-sm text-zinc-300 group-hover:text-white text-left">{q.question}</span>
                         <span className="text-xs text-zinc-600 bg-zinc-800/50 px-2 py-0.5 rounded">{q.searches}</span>
                       </Link>
                     ))}
