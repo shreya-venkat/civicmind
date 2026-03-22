@@ -235,7 +235,7 @@ export default function TopicPage() {
                     <path d="M12 16v-4M12 8h.01"/>
                   </svg>
                 </div>
-                <span className="text-lg font-semibold">CivicMind</span>
+                <span className="text-lg font-semibold">inFormed</span>
               </Link>
               <span className="text-zinc-700">/</span>
               <span className="text-zinc-400 text-sm">{topic.title}</span>
@@ -386,7 +386,7 @@ export default function TopicPage() {
                 }`}
               >
                 {msg.role === "assistant" && (
-                  <p className="text-xs font-medium text-indigo-400 mb-1">CivicMind AI</p>
+                  <p className="text-xs font-medium text-indigo-400 mb-1">inFormed AI</p>
                 )}
                 {msg.content}
               </div>

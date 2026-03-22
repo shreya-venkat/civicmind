@@ -153,7 +153,7 @@ function SearchContent() {
                   <path d="M12 16v-4M12 8h.01"/>
                 </svg>
               </div>
-              <span className="text-lg font-semibold tracking-tight">CivicMind</span>
+              <span className="text-lg font-semibold tracking-tight">inFormed</span>
             </a>
           </div>
         </div>

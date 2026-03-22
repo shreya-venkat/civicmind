@@ -175,7 +175,7 @@ function calculateResult(answers: (keyof QuizQuestion["options"])[]): {
     description = "You take a balanced approach, weighing multiple perspectives. You might agree with different sides on different issues, which is actually quite common.";
   }
 
-  const biasAwareness = `Your strongest opinions are in ${strongestCategory.category} policy. This might mean you're more susceptible to bias on topics that align with your priors — which is exactly why CivicMind shows you all sides.`;
+  const biasAwareness = `Your strongest opinions are in ${strongestCategory.category} policy. This might mean you're more susceptible to bias on topics that align with your priors — which is exactly why inFormed shows you all sides.`;
 
   const topics: { lean: "left" | "center" | "right"; title: string }[] = [];
   if (lean === "left" || lean === "center-left") {
@@ -264,7 +264,7 @@ export default function QuizPage() {
           <div className="max-w-3xl mx-auto px-6 py-4 flex items-center gap-3">
             <Link href="/" className="flex items-center gap-3 group">
               <div className="w-9 h-9 bg-gradient-to-br from-blue-500 via-purple-500 to-red-500 rounded-xl shadow-lg" />
-              <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">CivicMind</span>
+              <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">inFormed</span>
             </Link>
           </div>
         </nav>
@@ -337,7 +337,7 @@ export default function QuizPage() {
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center gap-3">
           <Link href="/" className="flex items-center gap-3 group">
             <div className="w-9 h-9 bg-gradient-to-br from-blue-500 via-purple-500 to-red-500 rounded-xl shadow-lg" />
-            <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">CivicMind</span>
+            <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">inFormed</span>
           </Link>
         </div>
       </nav>
