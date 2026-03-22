@@ -130,11 +130,72 @@ function CoverageSidebar({ topic }: { topic: TrendingTopic }) {
   );
 }
 
+function QuickTakeCard({ 
+  lean, 
+  perspective, 
+  articleCount, 
+  isActive, 
+  onClick 
+}: { 
+  lean: Lean; 
+  perspective: string;
+  articleCount: number;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  const colors = {
+    left: {
+      bg: "bg-blue-500/10 hover:bg-blue-500/20",
+      border: "border-blue-500/30",
+      active: "border-blue-500 ring-2 ring-blue-500/30",
+      header: "bg-blue-500/20",
+      text: "text-blue-400",
+      label: "Progressive"
+    },
+    center: {
+      bg: "bg-zinc-800/50 hover:bg-zinc-800",
+      border: "border-zinc-700",
+      active: "border-zinc-500 ring-2 ring-zinc-500/30",
+      header: "bg-zinc-700/50",
+      text: "text-zinc-400",
+      label: "Moderate"
+    },
+    right: {
+      bg: "bg-red-500/10 hover:bg-red-500/20",
+      border: "border-red-500/30",
+      active: "border-red-500 ring-2 ring-red-500/30",
+      header: "bg-red-500/20",
+      text: "text-red-400",
+      label: "Conservative"
+    }
+  };
+
+  const c = colors[lean];
+
+  return (
+    <button
+      onClick={onClick}
+      className={`text-left p-5 rounded-xl border ${c.border} ${c.bg} transition-all w-full ${isActive ? c.active : ''}`}
+    >
+      <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full ${c.header} mb-3`}>
+        <span className={`w-2 h-2 rounded-full ${
+          lean === 'left' ? 'bg-blue-500' : 
+          lean === 'right' ? 'bg-red-500' : 'bg-zinc-500'
+        }`} />
+        <span className={`text-xs font-medium ${c.text}`}>{c.label}</span>
+        <span className="text-zinc-600 text-xs">·</span>
+        <span className="text-zinc-500 text-xs">{articleCount} sources</span>
+      </div>
+      <p className="text-sm text-zinc-300 leading-relaxed line-clamp-4">{perspective}</p>
+    </button>
+  );
+}
+
 export default function TopicPage() {
   const params = useParams();
   const [topic, setTopic] = useState<TrendingTopic | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedLean, setSelectedLean] = useState<Lean>("left");
+  const [selectedLean, setSelectedLean] = useState<Lean | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -255,7 +316,7 @@ export default function TopicPage() {
     right: topic.articles.filter((a) => a.lean === "right"),
   };
 
-  const currentArticles = articlesByLean[selectedLean];
+  const currentArticles = selectedLean ? articlesByLean[selectedLean] : topic.articles;
 
   return (
     <div className="min-h-screen bg-zinc-950">
@@ -290,7 +351,7 @@ export default function TopicPage() {
         <main className="flex-1">
           {/* Topic header */}
           <div className="border-b border-zinc-800">
-            <div className="max-w-3xl mx-auto px-6 py-8">
+            <div className="max-w-4xl mx-auto px-6 py-8">
               <div className="flex items-center gap-3 mb-4">
                 <span className="text-xs font-medium px-2 py-0.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-800">
                   {topic.scope === "national" ? "🇺🇸 National" : "🌍 Global"}
@@ -304,83 +365,69 @@ export default function TopicPage() {
             </div>
           </div>
 
-          {/* AI Perspectives */}
-          {aiLoading ? (
-            <div className="max-w-3xl mx-auto px-6 py-8">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-                <span className="text-sm text-zinc-500">Generating perspectives...</span>
-              </div>
-            </div>
-          ) : aiPerspectives ? (
-            <div className="max-w-3xl mx-auto px-6 py-8">
+          {/* Quick Take Section */}
+          <div className="border-b border-zinc-800">
+            <div className="max-w-4xl mx-auto px-6 py-8">
               <div className="flex items-center gap-2 mb-6">
                 <div className="w-5 h-5 bg-gradient-to-br from-blue-500 via-purple-500 to-red-500 rounded-md" />
-                <span className="text-sm font-medium text-zinc-400">AI Analysis</span>
+                <h2 className="text-lg font-semibold text-white">Quick Take</h2>
+                <span className="text-zinc-500 text-sm">What each side is saying</span>
               </div>
-              <div className="grid md:grid-cols-3 gap-4">
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="w-2 h-2 rounded-full bg-blue-500" />
-                    <span className="text-sm font-medium text-blue-400">Left</span>
-                  </div>
-                  <p className="text-sm text-zinc-300 leading-relaxed">{aiPerspectives.left}</p>
+              
+              {aiLoading ? (
+                <div className="flex items-center gap-3 py-8">
+                  <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                  <span className="text-sm text-zinc-500">Generating perspectives from articles...</span>
                 </div>
-                <div className="bg-zinc-800/50 border border-zinc-700 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="w-2 h-2 rounded-full bg-zinc-500" />
-                    <span className="text-sm font-medium text-zinc-400">Center</span>
-                  </div>
-                  <p className="text-sm text-zinc-300 leading-relaxed">{aiPerspectives.center}</p>
+              ) : aiPerspectives ? (
+                <div className="grid md:grid-cols-3 gap-4">
+                  <QuickTakeCard
+                    lean="left"
+                    perspective={aiPerspectives.left}
+                    articleCount={articlesByLean.left.length}
+                    isActive={selectedLean === 'left'}
+                    onClick={() => setSelectedLean(selectedLean === 'left' ? null : 'left')}
+                  />
+                  <QuickTakeCard
+                    lean="center"
+                    perspective={aiPerspectives.center}
+                    articleCount={articlesByLean.center.length}
+                    isActive={selectedLean === 'center'}
+                    onClick={() => setSelectedLean(selectedLean === 'center' ? null : 'center')}
+                  />
+                  <QuickTakeCard
+                    lean="right"
+                    perspective={aiPerspectives.right}
+                    articleCount={articlesByLean.right.length}
+                    isActive={selectedLean === 'right'}
+                    onClick={() => setSelectedLean(selectedLean === 'right' ? null : 'right')}
+                  />
                 </div>
-                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="w-2 h-2 rounded-full bg-red-500" />
-                    <span className="text-sm font-medium text-red-400">Right</span>
-                  </div>
-                  <p className="text-sm text-zinc-300 leading-relaxed">{aiPerspectives.right}</p>
+              ) : (
+                <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6 text-center">
+                  <p className="text-zinc-500 text-sm">AI summaries coming soon</p>
                 </div>
-              </div>
-            </div>
-          ) : null}
+              )}
 
-          {/* Lean selector */}
-          <div className="border-b border-zinc-800">
-            <div className="max-w-3xl mx-auto px-6">
-              <div className="flex items-center gap-1">
-                {(["left", "center", "right"] as const).map((lean) => {
-                  const colors = {
-                    left: { dot: "bg-blue-500", text: "text-blue-400", active: "border-blue-500" },
-                    center: { dot: "bg-zinc-500", text: "text-zinc-400", active: "border-zinc-500" },
-                    right: { dot: "bg-red-500", text: "text-red-400", active: "border-red-500" },
-                  };
-                  const c = colors[lean];
-                  const isActive = selectedLean === lean;
-                  
-                  return (
-                    <button
-                      key={lean}
-                      onClick={() => setSelectedLean(lean)}
-                      className={`px-5 py-4 text-sm font-medium border-b-2 transition-colors ${
-                        isActive
-                          ? `${c.active} ${c.text}`
-                          : "border-transparent text-zinc-500 hover:text-zinc-300"
-                      }`}
-                    >
-                      <span className={`inline-block w-2 h-2 rounded-full mr-2 ${c.dot}`} />
-                      {lean.charAt(0).toUpperCase() + lean.slice(1)}
-                      <span className="ml-2 text-xs opacity-60">
-                        ({articlesByLean[lean].length})
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+              {selectedLean && (
+                <button
+                  onClick={() => setSelectedLean(null)}
+                  className="mt-4 text-xs text-indigo-400 hover:text-indigo-300"
+                >
+                  Show all sources (click again to reset filter)
+                </button>
+              )}
             </div>
           </div>
 
           {/* Articles */}
-          <div className="max-w-3xl mx-auto px-6 py-6">
+          <div className="max-w-4xl mx-auto px-6 py-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-medium text-zinc-400">
+                {selectedLean ? `${selectedLean.charAt(0).toUpperCase() + selectedLean.slice(1)}-lean sources` : 'All sources'}
+              </h3>
+              <span className="text-xs text-zinc-600">{currentArticles.length} articles</span>
+            </div>
             <div className="space-y-3">
               {currentArticles.map((article, i) => (
                 <a
@@ -388,10 +435,10 @@ export default function TopicPage() {
                   href={article.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group flex gap-4 p-4 border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/30 transition-colors"
+                  className="group flex gap-4 p-4 border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/30 transition-colors rounded-xl"
                 >
                   {article.image && (
-                    <div className="w-24 h-24 flex-shrink-0 overflow-hidden">
+                    <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-lg">
                       <img 
                         src={article.image} 
                         alt="" 
@@ -401,25 +448,29 @@ export default function TopicPage() {
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-zinc-200 group-hover:text-white transition-colors leading-snug line-clamp-2 mb-2">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className={`w-1.5 h-1.5 rounded-full ${
+                        article.lean === 'left' ? 'bg-blue-500' : 
+                        article.lean === 'center' ? 'bg-zinc-500' : 'bg-red-500'
+                      }`} />
+                      <span className="text-xs text-zinc-500">{article.source}</span>
+                      <span className="text-zinc-700">·</span>
+                      <span className="text-xs text-zinc-600">{new Date(article.date).toLocaleDateString()}</span>
+                    </div>
+                    <h3 className="font-medium text-zinc-200 group-hover:text-white transition-colors leading-snug line-clamp-2 mb-1.5">
                       {article.title}
                     </h3>
                     {article.description && (
-                      <p className="text-sm text-zinc-500 line-clamp-2 mb-2">
+                      <p className="text-sm text-zinc-500 line-clamp-2">
                         {article.description}
                       </p>
                     )}
-                    <div className="flex items-center gap-2 text-xs text-zinc-600">
-                      <span>{article.source}</span>
-                      <span>·</span>
-                      <span>{new Date(article.date).toLocaleDateString()}</span>
-                    </div>
                   </div>
                 </a>
               ))}
               {currentArticles.length === 0 && (
                 <div className="text-center py-12 text-zinc-500">
-                  No articles from {selectedLean}-leaning sources
+                  No articles from this perspective
                 </div>
               )}
             </div>
