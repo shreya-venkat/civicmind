@@ -70,12 +70,39 @@ function CoverageSidebar({ topic }: { topic: TrendingTopic }) {
   const centerPct = Math.round((topic.centerCount / topic.articleCount) * 100);
   const rightPct = Math.round((topic.rightCount / topic.articleCount) * 100);
 
+  const uniqueSources = Array.from(
+    topic.articles.reduce((acc, article) => {
+      if (!acc.has(article.source)) {
+        acc.set(article.source, { source: article.source, lean: article.lean, count: 0 });
+      }
+      acc.get(article.source)!.count++;
+      return acc;
+    }, new Map<string, { source: string; lean: string; count: number }>()).values()
+  ).sort((a, b) => b.count - a.count);
+
+  const latestDate = topic.articles.length > 0
+    ? new Date(Math.max(...topic.articles.map(a => new Date(a.date).getTime())))
+    : null;
+  const hoursAgo = latestDate
+    ? Math.round((Date.now() - latestDate.getTime()) / (1000 * 60 * 60))
+    : 0;
+
+  const relatedTopics: { id: string; title: string }[] = [];
+
   return (
     <aside className="w-72 border-l border-zinc-800 bg-zinc-950/50 hidden lg:block">
       <div className="p-5 space-y-6">
         <div>
           <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-4">Coverage</h3>
           <div className="space-y-3">
+            {latestDate && (
+              <div className="flex items-center gap-2 text-xs text-zinc-500">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M23 4v6h-6M1 20v-6h6M1 4l12 12" />
+                </svg>
+                Updated {hoursAgo < 1 ? 'just now' : hoursAgo === 1 ? '1 hour ago' : `${hoursAgo} hours ago`}
+              </div>
+            )}
             <div className="p-3 border border-zinc-800 rounded-xl">
               <p className="text-xs text-zinc-500 mb-2">Bias Distribution</p>
               <div className="flex h-3 rounded-full overflow-hidden bg-zinc-800 mb-2">
@@ -95,7 +122,7 @@ function CoverageSidebar({ topic }: { topic: TrendingTopic }) {
                 <p className="text-xs text-zinc-500">Articles</p>
               </div>
               <div className="p-2 bg-zinc-900 border border-zinc-800 rounded-lg">
-                <p className="text-lg font-bold text-white">{new Set(topic.articles.map(a => a.source)).size}</p>
+                <p className="text-lg font-bold text-white">{uniqueSources.length}</p>
                 <p className="text-xs text-zinc-500">Sources</p>
               </div>
             </div>
@@ -112,17 +139,34 @@ function CoverageSidebar({ topic }: { topic: TrendingTopic }) {
         )}
 
         <div>
-          <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3">Top Sources</h4>
+          <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3">Sources</h4>
           <div className="space-y-2">
-            {topic.articles.slice(0, 8).map((article, i) => (
+            {uniqueSources.slice(0, 10).map((item, i) => (
               <div key={i} className="flex items-center gap-2 text-xs">
-                <span className={`w-1.5 h-1.5 rounded-full ${article.lean === 'left' ? 'bg-blue-500' : article.lean === 'center' ? 'bg-zinc-500' : 'bg-red-500'}`} />
-                <span className="flex-1 text-zinc-400 truncate">{article.source}</span>
-                <span className="text-zinc-600">{new Date(article.date).toLocaleDateString('en', { month: 'short', day: 'numeric' })}</span>
+                <span className={`w-1.5 h-1.5 rounded-full ${item.lean === 'left' ? 'bg-blue-500' : item.lean === 'center' ? 'bg-zinc-500' : 'bg-red-500'}`} />
+                <span className="flex-1 text-zinc-400 truncate">{item.source}</span>
+                <span className="px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-500">{item.count}</span>
               </div>
             ))}
           </div>
         </div>
+
+        {relatedTopics.length > 0 && (
+          <div>
+            <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3">Related Topics</h4>
+            <div className="flex flex-wrap gap-2">
+              {relatedTopics.map((t, i) => (
+                <Link
+                  key={i}
+                  href={`/topic/${t.id}`}
+                  className="px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg text-xs text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors"
+                >
+                  {t.title}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   );
@@ -270,6 +314,7 @@ export default function TopicPage() {
   const [topic, setTopic] = useState<TrendingTopic | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedLean, setSelectedLean] = useState<Lean | null>(null);
+  const [previousLean, setPreviousLean] = useState<Lean | null>(null);
   const [compareMode, setCompareMode] = useState(false);
   const [compareLeft, setCompareLeft] = useState<Lean>("left");
   const [compareRight, setCompareRight] = useState<Lean>("right");
@@ -278,7 +323,18 @@ export default function TopicPage() {
   const [input, setInput] = useState("");
   const [aiAnalysis, setAiAnalysis] = useState<AIDeepDive | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [compareLoading, setCompareLoading] = useState(false);
   const [compareAnalysis, setCompareAnalysis] = useState<{ left: AIDeepDive | null; right: AIDeepDive | null }>({ left: null, right: null });
+
+  const toggleCompareMode = useCallback(() => {
+    if (compareMode) {
+      setCompareMode(false);
+      setSelectedLean(previousLean);
+    } else {
+      setPreviousLean(selectedLean);
+      setCompareMode(true);
+    }
+  }, [compareMode, selectedLean, previousLean]);
 
   useEffect(() => {
     fetch("/api/trending")
@@ -296,7 +352,6 @@ export default function TopicPage() {
   const fetchAnalysis = useCallback(async (lean: Lean, articles: TrendingArticle[]) => {
     if (articles.length === 0) return null;
 
-    setAiLoading(true);
     try {
       const res = await fetch("/api/ai", {
         method: "POST",
@@ -320,8 +375,6 @@ export default function TopicPage() {
       }
     } catch {
       // Silently fail
-    } finally {
-      setAiLoading(false);
     }
     return null;
   }, [topic?.title]);
@@ -329,14 +382,23 @@ export default function TopicPage() {
   useEffect(() => {
     if (compareMode) {
       if (topic) {
-        fetchAnalysis(compareLeft, topic.articles.filter(a => a.lean === compareLeft))
-          .then(result => setCompareAnalysis(prev => ({ ...prev, left: result })));
-        fetchAnalysis(compareRight, topic.articles.filter(a => a.lean === compareRight))
-          .then(result => setCompareAnalysis(prev => ({ ...prev, right: result })));
+        setCompareLoading(true);
+        setCompareAnalysis({ left: null, right: null });
+        Promise.all([
+          fetchAnalysis(compareLeft, topic.articles.filter(a => a.lean === compareLeft)),
+          fetchAnalysis(compareRight, topic.articles.filter(a => a.lean === compareRight)),
+        ]).then(([left, right]) => {
+          setCompareAnalysis({ left, right });
+          setCompareLoading(false);
+        });
       }
     } else if (selectedLean && topic) {
+      setAiLoading(true);
       const articles = topic.articles.filter((a) => a.lean === selectedLean);
-      fetchAnalysis(selectedLean, articles).then(setAiAnalysis);
+      fetchAnalysis(selectedLean, articles).then((result) => {
+        setAiAnalysis(result);
+        setAiLoading(false);
+      });
     } else {
       setAiAnalysis(null);
       setCompareAnalysis({ left: null, right: null });
@@ -491,7 +553,7 @@ export default function TopicPage() {
 
                 {/* Compare toggle */}
                 <button
-                  onClick={() => setCompareMode(!compareMode)}
+                  onClick={toggleCompareMode}
                   className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all ${
                     compareMode
                       ? 'bg-indigo-600 border-indigo-600 text-white'
@@ -502,28 +564,40 @@ export default function TopicPage() {
                 </button>
               </div>
 
-              {/* Compare dropdowns */}
+              {/* Compare perspective selectors */}
               {compareMode && (
-                <div className="flex items-center gap-3 pb-4">
-                  <select
-                    value={compareLeft}
-                    onChange={(e) => setCompareLeft(e.target.value as Lean)}
-                    className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
-                  >
-                    <option value="left">Progressive</option>
-                    <option value="center">Moderate</option>
-                    <option value="right">Conservative</option>
-                  </select>
-                  <span className="text-zinc-500 text-sm">vs</span>
-                  <select
-                    value={compareRight}
-                    onChange={(e) => setCompareRight(e.target.value as Lean)}
-                    className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
-                  >
-                    <option value="left">Progressive</option>
-                    <option value="center">Moderate</option>
-                    <option value="right">Conservative</option>
-                  </select>
+                <div className="flex items-center gap-2 pb-4">
+                  <div className="flex gap-1">
+                    {(["left", "center", "right"] as const).map((lean) => (
+                      <button
+                        key={lean}
+                        onClick={() => setCompareLeft(lean)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                          compareLeft === lean
+                            ? `${leanConfig[lean].bg} ${leanConfig[lean].text} border ${leanConfig[lean].border}`
+                            : 'bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-zinc-700'
+                        }`}
+                      >
+                        {leanConfig[lean].label}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="text-zinc-600 mx-1">vs</span>
+                  <div className="flex gap-1">
+                    {(["left", "center", "right"] as const).map((lean) => (
+                      <button
+                        key={lean}
+                        onClick={() => setCompareRight(lean)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                          compareRight === lean
+                            ? `${leanConfig[lean].bg} ${leanConfig[lean].text} border ${leanConfig[lean].border}`
+                            : 'bg-zinc-900 text-zinc-500 border border-zinc-800 hover:border-zinc-700'
+                        }`}
+                      >
+                        {leanConfig[lean].label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -533,16 +607,22 @@ export default function TopicPage() {
           {compareMode ? (
             /* Compare Mode */
             <div className="max-w-4xl mx-auto px-6 py-8">
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="mb-6 text-center">
+                <h2 className="text-lg font-semibold text-white">
+                  Comparing {leanConfig[compareLeft].label} vs {leanConfig[compareRight].label}
+                </h2>
+              </div>
+              <div className="relative">
+                <div className="grid md:grid-cols-2 gap-8">
                 {/* Left Perspective */}
                 <div className={`border border-zinc-800 rounded-2xl p-6 ${leanConfig[compareLeft].bg}`}>
                   <div className="flex items-center gap-2 mb-6">
                     <span className={`w-3 h-3 rounded-full ${leanConfig[compareLeft].dot}`} />
-                    <h2 className={`text-lg font-semibold ${leanConfig[compareLeft].text}`}>
+                    <h3 className={`text-lg font-semibold ${leanConfig[compareLeft].text}`}>
                       {leanConfig[compareLeft].label}
-                    </h2>
+                    </h3>
                   </div>
-                  {aiLoading ? (
+                  {compareLoading ? (
                     <div className="flex items-center gap-3 py-8">
                       <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
                       <span className="text-sm text-zinc-500">Analyzing...</span>
@@ -581,11 +661,11 @@ export default function TopicPage() {
                 <div className={`border border-zinc-800 rounded-2xl p-6 ${leanConfig[compareRight].bg}`}>
                   <div className="flex items-center gap-2 mb-6">
                     <span className={`w-3 h-3 rounded-full ${leanConfig[compareRight].dot}`} />
-                    <h2 className={`text-lg font-semibold ${leanConfig[compareRight].text}`}>
+                    <h3 className={`text-lg font-semibold ${leanConfig[compareRight].text}`}>
                       {leanConfig[compareRight].label}
-                    </h2>
+                    </h3>
                   </div>
-                  {aiLoading ? (
+                  {compareLoading ? (
                     <div className="flex items-center gap-3 py-8">
                       <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
                       <span className="text-sm text-zinc-500">Analyzing...</span>
@@ -618,6 +698,13 @@ export default function TopicPage() {
                   ) : (
                     <p className="text-zinc-500 text-sm">No analysis available</p>
                   )}
+                </div>
+                </div>
+                {/* VS Divider */}
+                <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+                  <div className="w-10 h-10 bg-zinc-800 border border-zinc-700 rounded-full flex items-center justify-center">
+                    <span className="text-sm font-bold text-zinc-400">VS</span>
+                  </div>
                 </div>
               </div>
             </div>
