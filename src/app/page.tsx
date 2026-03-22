@@ -44,15 +44,16 @@ const TRENDING_QUESTIONS = [
 ];
 
 function BiasBarMini({ topic }: { topic: TrendingTopic }) {
-  const leftPct = Math.round((topic.leftCount / topic.articleCount) * 100) || 33;
-  const centerPct = Math.round((topic.centerCount / topic.articleCount) * 100) || 34;
-  const rightPct = Math.round((topic.rightCount / topic.articleCount) * 100) || 33;
+  const total = topic.leftCount + topic.centerCount + topic.rightCount;
+  const leftPct = total > 0 ? (topic.leftCount / total) * 100 : 33;
+  const centerPct = total > 0 ? (topic.centerCount / total) * 100 : 34;
+  const rightPct = total > 0 ? (topic.rightCount / total) * 100 : 33;
   
   return (
-    <div className="flex h-1 rounded-full overflow-hidden bg-zinc-800">
-      {topic.leftCount > 0 && <div className="bg-blue-500" style={{ width: `${leftPct}%` }} />}
-      {topic.centerCount > 0 && <div className="bg-zinc-500" style={{ width: `${centerPct}%` }} />}
-      {topic.rightCount > 0 && <div className="bg-red-500" style={{ width: `${rightPct}%` }} />}
+    <div className="flex h-1.5 rounded-full overflow-hidden bg-zinc-800">
+      {leftPct > 0 && <div className="bg-blue-500" style={{ width: `${leftPct}%` }} />}
+      {centerPct > 0 && <div className="bg-zinc-500" style={{ width: `${centerPct}%` }} />}
+      {rightPct > 0 && <div className="bg-red-500" style={{ width: `${rightPct}%` }} />}
     </div>
   );
 }
@@ -64,9 +65,10 @@ function TopicCard({ topic }: { topic: TrendingTopic }) {
   const featuredArticle = topic.articles.find(a => a.image) || topic.articles[0];
   const previewArticles = topic.articles.slice(0, 3);
   
-  const leftPct = Math.round((topic.leftCount / topic.articleCount) * 100) || 33;
-  const centerPct = Math.round((topic.centerCount / topic.articleCount) * 100) || 34;
-  const rightPct = Math.round((topic.rightCount / topic.articleCount) * 100) || 33;
+  const total = topic.leftCount + topic.centerCount + topic.rightCount;
+  const leftPct = total > 0 ? Math.round((topic.leftCount / total) * 100) : 33;
+  const centerPct = total > 0 ? Math.round((topic.centerCount / total) * 100) : 34;
+  const rightPct = total > 0 ? Math.round((topic.rightCount / total) * 100) : 33;
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -302,14 +304,14 @@ export default function Home() {
                 }}
                 onFocus={() => setShowDropdown(true)}
                 placeholder="What do you want to understand?"
-                className="w-full px-6 py-4.5 pr-14 bg-zinc-900/80 border border-zinc-800 rounded-2xl text-white placeholder:text-zinc-500 focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all backdrop-blur-sm"
+                className="w-full px-6 py-6 pr-14 bg-zinc-900/80 border border-zinc-800 rounded-2xl text-lg text-white placeholder:text-zinc-500 focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all backdrop-blur-sm"
                 autoComplete="off"
               />
               <button 
                 type="submit"
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-indigo-600 hover:bg-indigo-700 rounded-xl text-white transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-3 bg-indigo-600 hover:bg-indigo-700 rounded-xl text-white transition-colors"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="11" cy="11" r="8"/>
                   <path d="m21 21-4.35-4.35"/>
                 </svg>
@@ -380,7 +382,7 @@ export default function Home() {
                   scopeFilter === "national" ? "text-white" : "text-zinc-400 hover:text-zinc-200"
                 }`}
               >
-                🇺🇸 National
+                National
                 {scopeFilter === "national" && (
                   <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-indigo-500 rounded-full" />
                 )}
@@ -391,7 +393,7 @@ export default function Home() {
                   scopeFilter === "global" ? "text-white" : "text-zinc-400 hover:text-zinc-200"
                 }`}
               >
-                🌍 Global
+                Global
                 {scopeFilter === "global" && (
                   <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-indigo-500 rounded-full" />
                 )}
