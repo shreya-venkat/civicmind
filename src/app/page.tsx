@@ -50,20 +50,26 @@ const TRENDING_QUESTIONS = [
 ];
 
 function BiasBar({ topic }: { topic: TrendingTopic }) {
-  const leftPct = Math.round((topic.leftCount / topic.articleCount) * 100);
-  const centerPct = Math.round((topic.centerCount / topic.articleCount) * 100);
-  const rightPct = Math.round((topic.rightCount / topic.articleCount) * 100);
+  const leftPct = Math.round((topic.leftCount / topic.articleCount) * 100) || 33;
+  const centerPct = Math.round((topic.centerCount / topic.articleCount) * 100) || 34;
+  const rightPct = Math.round((topic.rightCount / topic.articleCount) * 100) || 33;
   
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-[10px] text-blue-400 w-8">L {leftPct}%</span>
-      <div className="flex gap-0.5 h-1 flex-1">
-        {topic.leftCount > 0 && <div className="bg-blue-500" style={{ width: `${leftPct}%` }} />}
-        {topic.centerCount > 0 && <div className="bg-zinc-600" style={{ width: `${centerPct}%` }} />}
-        {topic.rightCount > 0 && <div className="bg-red-500" style={{ width: `${rightPct}%` }} />}
+    <div className="flex h-12 rounded-xl overflow-hidden mt-4 mb-2">
+      <div className="flex-1 bg-blue-600/80 flex flex-col items-center justify-center rounded-l-xl">
+        <span className="text-xs font-semibold text-white/80">L</span>
+        <span className="text-sm font-bold text-white">{leftPct}%</span>
       </div>
-      <span className="text-[10px] text-zinc-500 w-8 text-right">C {centerPct}%</span>
-      <span className="text-[10px] text-red-400 w-8 text-right">R {rightPct}%</span>
+      <div className="w-px bg-zinc-800" />
+      <div className="flex-1 bg-zinc-700 flex flex-col items-center justify-center">
+        <span className="text-xs font-semibold text-white/80">C</span>
+        <span className="text-sm font-bold text-white">{centerPct}%</span>
+      </div>
+      <div className="w-px bg-zinc-800" />
+      <div className="flex-1 bg-red-600/80 flex flex-col items-center justify-center rounded-r-xl">
+        <span className="text-xs font-semibold text-white/80">R</span>
+        <span className="text-sm font-bold text-white">{rightPct}%</span>
+      </div>
     </div>
   );
 }
@@ -87,7 +93,7 @@ function TopicTile({ topic }: { topic: TrendingTopic }) {
         )}
       </div>
       <div className="pt-3">
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-2 mb-1">
           <h3 className="font-semibold text-white group-hover:text-indigo-300 transition-colors">
             {topic.title}
           </h3>
@@ -95,23 +101,10 @@ function TopicTile({ topic }: { topic: TrendingTopic }) {
             {topic.scope === 'national' ? '🇺🇸' : '🌍'}
           </span>
         </div>
-        <p className="text-sm text-zinc-400 line-clamp-2 mb-3">
+        <p className="text-sm text-zinc-400 line-clamp-1">
           {mainArticle?.title || topic.description}
         </p>
-        <div className="mb-2">
-          <BiasBar topic={topic} />
-        </div>
-        <div className="flex items-center gap-2 text-xs text-zinc-500">
-          <span>{mainArticle?.source}</span>
-          <span>·</span>
-          <span>{topic.articleCount} articles</span>
-          {topic.coverageGap && (
-            <>
-              <span>·</span>
-              <span className="text-amber-500">⚠️ gap</span>
-            </>
-          )}
-        </div>
+        <BiasBar topic={topic} />
       </div>
     </Link>
   );
@@ -182,7 +175,7 @@ export default function Home() {
         {/* Hero */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold tracking-tight mb-4">
-            Understand politics. Form your own opinion.
+            Understand politics. Form informed opinions.
           </h1>
           <p className="text-zinc-500 text-lg mb-8">
             Get context. See every angle. Ask anything.
