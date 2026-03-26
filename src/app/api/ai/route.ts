@@ -72,7 +72,7 @@ async function callGroq(prompt: string): Promise<string> {
 export async function POST(request: Request) {
   if (!GROQ_API_KEY) {
     return NextResponse.json(
-      { error: "AI not configured. Add GROQ_API_KEY to .env" },
+      { error: "AI not configured. Add GROQ_API_KEY to Vercel environment variables." },
       { status: 503 }
     );
   }
